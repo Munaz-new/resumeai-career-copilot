@@ -1,0 +1,1 @@
+REVOKE ALL ON public.analysis_history FROM anon; GRANT SELECT, INSERT, UPDATE, DELETE ON public.analysis_history TO authenticated; GRANT ALL ON public.analysis_history TO service_role;
