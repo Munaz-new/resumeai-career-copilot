@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Upload, Puzzle, Lightbulb,
-  MessageSquareText, Clock, ChevronLeft, ChevronRight,
+  MessageSquareText, Clock, ChevronLeft, ChevronRight, Sparkles,
   LogOut, GitCompare, FilePlus,
 } from "lucide-react";
 import { useState } from "react";
