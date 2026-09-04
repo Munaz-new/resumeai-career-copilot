@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Upload, Puzzle, Lightbulb,
-  MessageSquareText, Clock, ChevronLeft, ChevronRight, Sparkles,
+  MessageSquareText, Clock, ChevronLeft, ChevronRight,
   LogOut, GitCompare, FilePlus,
 } from "lucide-react";
 import { useState } from "react";
@@ -36,16 +36,23 @@ export function AppSidebar() {
       style={{ background: "hsl(var(--sidebar-background))" }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-14 border-b" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-          <Sparkles className="w-4 h-4 text-primary-foreground" />
-        </div>
+      <div
+        className="flex items-center gap-3 px-4 h-14 border-b"
+        style={{ borderColor: "hsl(var(--sidebar-border))" }}
+      >
+        <img
+          src="/branding/resumeai-icon.svg"
+          alt="ResumeAI"
+          className="w-8 h-8 shrink-0 object-contain"
+        />
         {!collapsed && (
           <div className="flex flex-col leading-tight">
             <span className="font-heading font-bold text-[16px] tracking-tight text-foreground">
               ResumeAI
             </span>
-            <span className="text-[10px] text-muted-foreground font-medium">Career Copilot</span>
+            <span className="text-[10px] text-muted-foreground font-medium">
+              Career Copilot
+            </span>
           </div>
         )}
       </div>
