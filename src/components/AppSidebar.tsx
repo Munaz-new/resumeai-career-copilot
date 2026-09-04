@@ -40,13 +40,11 @@ export function AppSidebar() {
         className="flex items-center gap-3 px-4 h-14 border-b"
         style={{ borderColor: "hsl(var(--sidebar-border))" }}
       >
-        <div className="w-8 h-8 shrink-0 overflow-hidden rounded-md flex items-start justify-center">
-          <img
-            src="/branding/Logo.png"
-            alt="ResumeAI"
-            className="w-8 h-8 object-cover object-top"
-          />
-        </div>
+        <img
+          src="/branding/favicon.svg"
+          alt="ResumeAI"
+          className="w-8 h-8 shrink-0 object-contain"
+        />
         {!collapsed && (
           <div className="flex flex-col leading-tight">
             <span className="font-heading font-bold text-[16px] tracking-tight text-foreground">
