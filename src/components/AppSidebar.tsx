@@ -41,7 +41,7 @@ export function AppSidebar() {
         style={{ borderColor: "hsl(var(--sidebar-border))" }}
       >
         <img
-          src="/branding/favicon.svg"
+          src="/branding/resumeai-icon.png"
           alt="ResumeAI"
           className="w-8 h-8 shrink-0 object-contain"
         />

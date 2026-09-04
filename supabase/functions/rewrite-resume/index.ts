@@ -61,100 +61,147 @@ serve(async (req) => {
       : null;
     if (!safeMode) return jsonResponse({ error: "Invalid `mode`" }, 400);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) return jsonResponse({ error: "Server misconfigured" }, 500);
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!GEMINI_API_KEY) {
+    return jsonResponse({ error: "Server misconfigured" }, 500);
+  }
 
-    const modeNote: Record<string, string> = {
-      bullet: "Rewrite each input as a single ATS-friendly resume bullet point.",
-      section: "Rewrite each input as a stronger resume section (Summary, Experience entry, or Project description). One improved version per input.",
-      full: "Treat each input as part of a full resume rewrite. Make each line more impactful, ATS-friendly, and aligned with the job description.",
-    };
+  const modeNote: Record<string, string> = {
+    bullet: "Rewrite each input as a single ATS-friendly resume bullet point.",
+    section:
+      "Rewrite each input as a stronger resume section (Summary, Experience entry, or Project description). One improved version per input.",
+    full:
+      "Treat each input as part of a full resume rewrite. Make each line more impactful, ATS-friendly, and aligned with the job description.",
+  };
 
-    const roleLine = role
-      ? `Target role: ${role}. Use vocabulary, action verbs and metrics that a recruiter for this exact role would expect.`
-      : "";
+  const roleLine = role
+    ? `Target role: ${role}. Use vocabulary, action verbs and metrics that a recruiter for this exact role would expect.`
+    : "";
 
-    const systemPrompt = `You are a professional resume writer and ATS optimization expert.
+  const systemPrompt = `You are a professional resume writer and ATS optimization expert.
+
 ${modeNote[safeMode]}
 ${roleLine}
 
 Rules:
-- Start with a strong action verb appropriate for the target role
-- Include quantifiable results where possible (use realistic estimates if needed)
-- Align with the job description keywords
-- Keep each output concise (1-3 lines)
-- Use professional language tuned to the target role
+- Start with a strong action verb appropriate for the target role.
+- Include quantifiable results where possible. Never invent facts or achievements.
+- Align with the job description keywords where appropriate.
+- Keep each output concise (1-3 lines).
+- Use professional language tuned to the target role.
+- Preserve the original meaning and facts.
+- Return ONLY valid JSON matching the requested schema.`;
 
-Return a JSON array of objects with "original" and "improved" fields.`;
+  const userPrompt = `${role ? `Target Role: ${role}\n\n` : ""}Job Description:
+${jd}
 
-    const userPrompt = `${role ? `Target Role: ${role}\n\n` : ""}Job Description:\n${jd}\n\nMode: ${safeMode}\nInputs to rewrite:\n${safeBullets.map((b, i) => `${i + 1}. ${b}`).join("\n")}`;
+Mode: ${safeMode}
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+Inputs to rewrite:
+${safeBullets.map((b, i) => `${i + 1}. ${b}`).join("\n")}`;
+
+  const response = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent",
+    {
       method: "POST",
       headers: {
-        "Lovable-API-Key": LOVABLE_API_KEY,
-        "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+        "x-goog-api-key": GEMINI_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [
+        systemInstruction: {
+          parts: [{ text: systemPrompt }],
+        },
+        contents: [
           {
-            type: "function",
-            function: {
-              name: "return_rewrites",
-              description: "Return rewritten bullet points",
-              parameters: {
-                type: "object",
-                properties: {
-                  rewrites: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        original: { type: "string" },
-                        improved: { type: "string" },
-                      },
-                      required: ["original", "improved"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["rewrites"],
-                additionalProperties: false,
-              },
-            },
+            role: "user",
+            parts: [{ text: userPrompt }],
           },
         ],
-        tool_choice: { type: "function", function: { name: "return_rewrites" } },
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              rewrites: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    original: { type: "STRING" },
+                    improved: { type: "STRING" },
+                  },
+                  required: ["original", "improved"],
+                },
+              },
+            },
+            required: ["rewrites"],
+          },
+        },
       }),
-    });
+    },
+  );
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return jsonResponse({ error: "Rate limit exceeded. Please try again later." }, 429);
-      }
-      if (response.status === 402) {
-        return jsonResponse({ error: "AI credits exhausted. Please add funds." }, 402);
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      return jsonResponse({ error: "AI rewrite is temporarily unavailable. Please try again." }, 502);
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Gemini API error:", response.status, errorText);
+
+    if (response.status === 429) {
+      return jsonResponse(
+        { error: "Rate limit exceeded. Please try again later." },
+        429,
+      );
     }
 
-    const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    let rewrites = [];
-    if (toolCall?.function?.arguments) {
-      const parsed = JSON.parse(toolCall.function.arguments);
-      rewrites = parsed.rewrites || [];
+    if (response.status === 401 || response.status === 403) {
+      return jsonResponse(
+        { error: "AI service authentication failed." },
+        502,
+      );
     }
 
-    return jsonResponse({ rewrites });
+    return jsonResponse(
+      { error: "AI rewrite is temporarily unavailable. Please try again." },
+      502,
+    );
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    console.error("Gemini returned no text:", JSON.stringify(data));
+    return jsonResponse(
+      { error: "AI returned an empty response. Please try again." },
+      502,
+    );
+  }
+
+  let parsed: { rewrites?: unknown };
+
+  try {
+    parsed = JSON.parse(text);
+  } catch (e) {
+    console.error("Gemini JSON parse error:", e, text);
+    return jsonResponse(
+      { error: "AI returned an invalid response. Please try again." },
+      502,
+    );
+  }
+
+  const rewrites = Array.isArray(parsed.rewrites)
+    ? parsed.rewrites
+        .filter(
+          (item): item is { original: string; improved: string } =>
+            typeof item === "object" &&
+            item !== null &&
+            typeof (item as Record<string, unknown>).original === "string" &&
+            typeof (item as Record<string, unknown>).improved === "string",
+        )
+        .slice(0, MAX_BULLETS)
+    : [];
+
+  return jsonResponse({ rewrites });
   } catch (e) {
     console.error("rewrite error:", e);
     return jsonResponse({ error: "Unexpected error" }, 500);
