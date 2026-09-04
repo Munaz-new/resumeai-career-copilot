@@ -1,130 +1,375 @@
-# Resume AI
+# ResumeAI 🚀
 
-Build a modern, professional AI Resume Analyzer web application with a clean and premium UI.
+ResumeAI is an AI-powered career assistant designed to help students, freshers, and early-career professionals improve their resumes and prepare for the job market.
 
-Core Purpose
+## Features
 
-The application should allow users to upload or paste their resume and compare it with a job description to receive an ATS-style analysis score, skill gap insights, and improvement suggestions.
+- Resume Analyzer
+- ATS-style resume scoring
+- Keyword and skills matching
+- Missing skills detection
+- Resume improvement suggestions
+- AI-powered bullet point rewriting
+- Interview preparation
+- Skill roadmap guidance
+- Role-based resume templates
+- Job Ready Meter
+- Responsive desktop and mobile UI
 
-Main Features
+---
 
-Resume Upload Section
+## 1. Download the Project
 
-Drag and drop PDF or DOCX resume upload
+You can either download the repository as a ZIP file or clone it using Git.
 
-Option to paste resume text manually
+### Using Git
 
-Display uploaded file name
+```bash
+git clone https://github.com/Munaz-new/resumeai-career-copilot.git
+cd resumeai-career-copilot
+```
 
-Job Description Input
+### Using ZIP
 
-Large text area for pasting job description
+On the GitHub repository page, select **Code → Download ZIP** and extract the project on your computer.
 
-Placeholder example for software engineering role
+Then open a terminal inside the extracted project folder.
 
-AI Resume Analysis
+---
 
-ATS score out of 100
+## 2. Requirements
 
-Keyword match percentage
+Before starting, install:
 
-Skills match percentage
+- Node.js 20 or newer
+- npm
+- Git (recommended)
+- A Supabase account/project
 
-Missing skills detection
+Node.js 22 LTS is recommended.
 
-Formatting quality score
+---
 
-Section completeness check
+## 3. Create Your Local `.env` File
 
-Grammar and readability suggestions
+### What is `.env`?
 
-Smart Suggestions
+`.env` is a local configuration file used by ResumeAI to connect to the required services.
 
-Rewrite weak bullet points into strong achievement-based statements
+The `.env` file is **not included in this GitHub repository** because it contains environment-specific configuration.
 
-Suggest action verbs
+Instead, ResumeAI provides:
 
-Recommend missing sections such as projects, certifications, summary
+```text
+.env.example
+```
 
-Highlight missing technical skills
+This is a safe template that shows which environment variables are required.
 
-Dashboard UI
+### Step 1: Create `.env`
 
-Modern sidebar navigation
+Make sure you are inside the ResumeAI project folder:
 
-Cards for ATS score, missing skills, matched skills
+```bash
+cd resumeai-career-copilot
+```
 
-Progress bars and circular score charts
+Create your local `.env` file:
 
-Responsive design for mobile and desktop
+```bash
+cp .env.example .env
+```
 
-Professional recruiter-style theme
+### Step 2: Open `.env`
 
-Advanced Features
+With VS Code:
 
-Resume Roast Mode (constructive feedback)
+```bash
+code .env
+```
 
-Interview question generator based on resume
+Or with Neovim:
 
-Skill roadmap for missing technologies
+```bash
+nvim .env
+```
 
-Role-based templates for fresher, intern, and experienced users
+### Step 3: Configure Your Supabase Project
 
-Design Style
+ResumeAI uses Supabase for authentication, database services, and backend functionality.
 
-Use a premium modern dashboard look:
+Create your own Supabase project and add the required values shown in `.env.example`.
 
-glassmorphism cards
+Your `.env` may contain variables similar to:
 
-soft shadows
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+VITE_SUPABASE_PROJECT_ID=your_supabase_project_id
+```
 
-rounded corners
+Replace the placeholder values with the values from **your own Supabase project**.
 
-minimal professional colors
+> Do not use another developer's private credentials.
 
-dashboard charts
+### Step 4: Save `.env`
 
-drag-and-drop upload area
+Your project should now contain:
 
-elegant typography
+```text
+resumeai-career-copilot/
+├── .env
+├── .env.example
+├── src/
+├── public/
+├── supabase/
+└── package.json
+```
 
-Suggested Pages
+### 🔐 Important Security Rule
 
-Home
+**Never commit your `.env` file to GitHub.**
 
-Resume Analyzer
+The `.env` file is for your local computer.
 
-Interview Prep
+The `.env.example` file is the public template.
 
-Skill Roadmap
+Safe to commit:
 
-Profile History
+```text
+.env.example
+```
 
-Bonus Feature Idea
+Keep private:
 
-Add a “Job Ready Meter” that visually shows if the user is internship-ready, job-ready, or industry-ready.
+```text
+.env
+```
 
-Make the app feel like an AI-powered career assistant and portfolio-grade project.
+---
 
-This project was built with [Lovable](https://lovable.dev).
+## 4. Install Dependencies
 
-**Live app**: https://open-source-resume-ai.lovable.app
+Install the required Node.js packages:
 
-## Build with Lovable
+```bash
+npm install
+```
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/1087d631-d842-40b3-b3e0-dd679d7f4556).
+---
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+## 5. Configure the Supabase Backend
 
-## Development
+ResumeAI includes Supabase configuration and database migration files in the `supabase/` directory.
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+If you want to run your own complete backend, you will need your own Supabase project.
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+### Install the Supabase CLI
+
+You can install the CLI as a project dependency:
+
+```bash
+npm install supabase --save-dev
+```
+
+Then verify it:
+
+```bash
+npx supabase --help
+```
+
+### Log in to Supabase
+
+```bash
+npx supabase login
+```
+
+A browser window will open so you can authenticate with your Supabase account.
+
+### Link Your Supabase Project
+
+Use your own Supabase project ID:
+
+```bash
+npx supabase link --project-ref YOUR_PROJECT_ID
+```
+
+Replace `YOUR_PROJECT_ID` with your actual Supabase project ID.
+
+### Apply Database Migrations
+
+ResumeAI includes database migration files in:
+
+```text
+supabase/migrations/
+```
+
+After linking your Supabase project, preview or apply the pending migrations:
+
+```bash
+npx supabase db push --dry-run
+```
+
+```bash
+npx supabase db push
+```
+
+### Deploy Edge Functions
+
+ResumeAI also contains backend Edge Function source under:
+
+```text
+supabase/functions/
+```
+
+Deploy the required functions with:
+
+```bash
+npx supabase functions deploy
+```
+
+Or deploy a specific function:
+
+```bash
+npx supabase functions deploy FUNCTION_NAME
+```
+
+Replace `FUNCTION_NAME` with the actual function directory name used by your project.
+
+> Some Edge Functions may require server-side secrets. Configure those secrets in Supabase rather than placing private API keys in the frontend `.env` file.
+
+For more information, see the [Supabase CLI documentation](https://supabase.com/docs/guides/cli).
+
+---
+
+## 6. Start ResumeAI
+
+After configuring your environment and Supabase project, start the development server:
+
+```bash
 npm run dev
 ```
+
+The terminal will display a local address similar to:
+
+```text
+Local: http://localhost:8080/
+```
+
+Open that address in your browser.
+
+ResumeAI should now be running locally.
+
+---
+
+## 7. If You See a Blank White Page
+
+If the development server starts but the browser displays a blank page, check the following:
+
+### Check 1: Make sure `.env` exists
+
+```bash
+ls -la .env
+```
+
+### Check 2: Verify your environment variables
+
+Make sure the required values in `.env` are configured correctly.
+
+### Check 3: Restart the development server
+
+Stop the server:
+
+```text
+Ctrl + C
+```
+
+Then start it again:
+
+```bash
+npm run dev
+```
+
+### Check 4: Check the browser console
+
+Open your browser Developer Tools and check the **Console** for JavaScript or configuration errors.
+
+### Check 5: Check Supabase configuration
+
+Make sure your Supabase project is correctly configured and that the required database migrations and Edge Functions have been deployed.
+
+---
+
+## 8. Useful Commands
+
+### Start development server
+
+```bash
+npm run dev
+```
+
+### Build for production
+
+```bash
+npm run build
+```
+
+### Preview production build
+
+```bash
+npm run preview
+```
+
+### Install dependencies
+
+```bash
+npm install
+```
+
+### Check Supabase CLI
+
+```bash
+npx supabase --help
+```
+
+### Check database migrations
+
+```bash
+npx supabase migration list
+```
+
+### Preview database changes
+
+```bash
+npx supabase db push --dry-run
+```
+
+### Deploy database migrations
+
+```bash
+npx supabase db push
+```
+
+### Deploy Edge Functions
+
+```bash
+npx supabase functions deploy
+```
+
+---
+
+## Contributing
+
+Contributions, improvements, bug reports, and feature suggestions are welcome.
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Make your changes.
+4. Test the project locally.
+5. Open a pull request.
+
+---
+
+## License
+
+This project is licensed under the MIT License.
