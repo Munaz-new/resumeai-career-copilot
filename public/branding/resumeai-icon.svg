@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ResumeAI">
+  <title>ResumeAI</title>
+  <g fill="none" stroke="#06255F" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M120 392V112c0-24 20-44 44-44h168l72 72v150"/>
+    <path d="M332 68v72h72"/>
+    <path d="M120 392c64 40 132 40 196 4 54-30 96-73 140-130"/>
+    <path d="M414 266l48 0-7-48"/>
+    <circle cx="224" cy="175" r="28" fill="#06255F" stroke="none"/>
+    <path d="M174 244c0-28 22-50 50-50s50 22 50 50" fill="#06255F" stroke="none"/>
+    <path d="M176 282h122"/>
+    <path d="M176 326h122"/>
+    <path d="M176 370h82"/>
+  </g>
+  <path d="M382 72c8 22 18 32 40 40-22 8-32 18-40 40-8-22-18-32-40-40 22-8 32-18 40-40z" fill="#06255F"/>
+</svg>
