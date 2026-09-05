@@ -1,9 +1,10 @@
 # ResumeAI 🚀
 
-ResumeAI is an AI-powered career assistant designed to help students, freshers, and early-career professionals improve their resumes and prepare for the job market.
+ResumeAI is an AI-powered career assistant for students, freshers, and early-career professionals. It helps users build and improve resumes, analyze ATS-style compatibility, prepare for interviews, and plan the skills needed for their target roles.
 
 ## Features
 
+- Resume Builder
 - Resume Analyzer
 - ATS-style resume scoring
 - Keyword and skills matching
@@ -14,143 +15,123 @@ ResumeAI is an AI-powered career assistant designed to help students, freshers, 
 - Skill roadmap guidance
 - Role-based resume templates
 - Job Ready Meter
+- Resume comparison
 - Responsive desktop and mobile UI
+- Google and email/password authentication through Supabase
 
 ---
 
-## 1. Download the Project
+## Tech Stack
 
-You can either download the repository as a ZIP file or clone it using Git.
+- React 18
+- TypeScript
+- Vite
+- React Router
+- Tailwind CSS
+- shadcn/ui and Radix UI components
+- Supabase Auth and backend services
+- TanStack React Query
+- Recharts
+- Vitest
 
-### Using Git
+---
 
-```bash
-git clone https://github.com/Munaz-new/resumeai-career-copilot.git
-cd resumeai-career-copilot
+## Project Structure
+
+```text
+resumeai-career-copilot/
+├── public/
+├── src/
+│   ├── components/
+│   ├── contexts/
+│   ├── integrations/
+│   ├── pages/
+│   └── ...
+├── supabase/
+│   ├── functions/
+│   └── migrations/
+├── .env.example
+├── package.json
+├── vercel.json
+└── README.md
 ```
 
-### Using ZIP
-
-On the GitHub repository page, select **Code → Download ZIP** and extract the project on your computer.
-
-Then open a terminal inside the extracted project folder.
-
 ---
 
-## 2. Requirements
+## 1. Requirements
 
 Before starting, install:
 
 - Node.js 20 or newer
 - npm
 - Git (recommended)
-- A Supabase account/project
+- A Supabase project if you want to use the application's backend and authentication
 
 Node.js 22 LTS is recommended.
 
 ---
 
-## 3. Create Your Local `.env` File
+## 2. Get the Project
 
-### What is `.env`?
-
-`.env` is a local configuration file used by ResumeAI to connect to the required services.
-
-The `.env` file is **not included in this GitHub repository** because it contains environment-specific configuration.
-
-Instead, ResumeAI provides:
-
-```text
-.env.example
-```
-
-This is a safe template that shows which environment variables are required.
-
-### Step 1: Create `.env`
-
-Make sure you are inside the ResumeAI project folder:
+Clone the repository:
 
 ```bash
+git clone https://github.com/Munaz-new/resumeai-career-copilot.git
 cd resumeai-career-copilot
 ```
 
-Create your local `.env` file:
+Or download the repository as a ZIP from GitHub and open a terminal in the extracted project folder.
+
+---
+
+## 3. Configure Environment Variables
+
+ResumeAI uses Vite environment variables for its Supabase connection.
+
+### Create `.env`
+
+Copy the safe example file:
 
 ```bash
 cp .env.example .env
 ```
 
-### Step 2: Open `.env`
-
-With VS Code:
-
-```bash
-code .env
-```
-
-Or with Neovim:
+Then open `.env` with your preferred editor. For example, with Neovim:
 
 ```bash
 nvim .env
 ```
 
-### Step 3: Configure Your Supabase Project
-
-ResumeAI uses Supabase for authentication, database services, and backend functionality.
-
-Create your own Supabase project and add the required values shown in `.env.example`.
-
-Your `.env` may contain variables similar to:
+The public template contains:
 
 ```env
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
-VITE_SUPABASE_PROJECT_ID=your_supabase_project_id
 ```
 
-Replace the placeholder values with the values from **your own Supabase project**.
+Replace the placeholders with values from **your own Supabase project**.
 
-> Do not use another developer's private credentials.
+### Security
 
-### Step 4: Save `.env`
+**Never commit `.env` to GitHub.**
 
-Your project should now contain:
+`.env.example` is intentionally safe to commit because it contains placeholders rather than credentials.
 
-```text
-resumeai-career-copilot/
-├── .env
-├── .env.example
-├── src/
-├── public/
-├── supabase/
-└── package.json
-```
+Do not put any of the following in the frontend source code or GitHub repository:
 
-### 🔐 Important Security Rule
+- Supabase secret/service-role keys
+- Google OAuth client secrets
+- Private API keys
+- Passwords
+- Other server-side credentials
 
-**Never commit your `.env` file to GitHub.**
-
-The `.env` file is for your local computer.
-
-The `.env.example` file is the public template.
-
-Safe to commit:
-
-```text
-.env.example
-```
-
-Keep private:
-
-```text
-.env
-```
+Supabase publishable/anonymous client credentials are intended for frontend use, but database access must still be protected with appropriate Supabase authentication and Row Level Security policies.
 
 ---
 
 ## 4. Install Dependencies
 
-Install the required Node.js packages:
+Run:
 
 ```bash
 npm install
@@ -158,149 +139,192 @@ npm install
 
 ---
 
-## 5. Configure the Supabase Backend
+## 5. Configure Supabase
 
-ResumeAI includes Supabase configuration and database migration files in the `supabase/` directory.
+The repository contains Supabase migrations and Edge Function source under `supabase/`.
 
-If you want to run your own complete backend, you will need your own Supabase project.
+If you are using your own Supabase project, configure the project before using backend-dependent features.
 
-### Install the Supabase CLI
+### Supabase CLI
 
-You can install the CLI as a project dependency:
+You can install the CLI as a development dependency:
 
 ```bash
 npm install supabase --save-dev
 ```
 
-Then verify it:
+Check it with:
 
 ```bash
 npx supabase --help
 ```
 
-### Log in to Supabase
+### Authenticate with Supabase
 
 ```bash
 npx supabase login
 ```
 
-A browser window will open so you can authenticate with your Supabase account.
+A browser window will open for authentication.
 
-### Link Your Supabase Project
-
-Use your own Supabase project ID:
+### Link a Supabase project
 
 ```bash
 npx supabase link --project-ref YOUR_PROJECT_ID
 ```
 
-Replace `YOUR_PROJECT_ID` with your actual Supabase project ID.
+Replace `YOUR_PROJECT_ID` with the ID of the Supabase project you intend to use.
 
-### Apply Database Migrations
+### Database migrations
 
-ResumeAI includes database migration files in:
-
-```text
-supabase/migrations/
-```
-
-After linking your Supabase project, preview or apply the pending migrations:
+Preview pending migrations:
 
 ```bash
 npx supabase db push --dry-run
 ```
 
+Apply migrations:
+
 ```bash
 npx supabase db push
 ```
 
-### Deploy Edge Functions
+### Edge Functions
 
-ResumeAI also contains backend Edge Function source under:
+The project contains Edge Function source under:
 
 ```text
 supabase/functions/
 ```
 
-Deploy the required functions with:
+Deploy all functions:
 
 ```bash
 npx supabase functions deploy
 ```
 
-Or deploy a specific function:
+Or deploy one function:
 
 ```bash
 npx supabase functions deploy FUNCTION_NAME
 ```
 
-Replace `FUNCTION_NAME` with the actual function directory name used by your project.
-
-> Some Edge Functions may require server-side secrets. Configure those secrets in Supabase rather than placing private API keys in the frontend `.env` file.
-
-For more information, see the [Supabase CLI documentation](https://supabase.com/docs/guides/cli).
+Some functions may require server-side secrets. Configure those secrets in Supabase rather than placing private keys in the frontend environment.
 
 ---
 
-## 6. Start ResumeAI
+## 6. Authentication
 
-After configuring your environment and Supabase project, start the development server:
+ResumeAI uses Supabase Auth.
+
+The application supports:
+
+- Email/password authentication
+- Google OAuth authentication
+- Persistent browser sessions
+
+Google OAuth requires configuration in both Supabase Auth and Google Cloud. The Google OAuth redirect URI must point to the Supabase Auth callback for the project, while the application's redirect URL must be allowed by the Supabase Auth redirect URL configuration.
+
+For local development, use the local application origin. For production, use the deployed application origin.
+
+Do not publish Google OAuth client secrets in this repository.
+
+---
+
+## 7. Start ResumeAI Locally
+
+Start the development server:
 
 ```bash
 npm run dev
 ```
 
-The terminal will display a local address similar to:
+The Vite development server normally runs at:
 
 ```text
-Local: http://localhost:8080/
+http://localhost:8080/
 ```
 
-Open that address in your browser.
-
-ResumeAI should now be running locally.
+Open the displayed local URL in your browser.
 
 ---
 
-## 7. If You See a Blank White Page
+## 8. Production Deployment
 
-If the development server starts but the browser displays a blank page, check the following:
+ResumeAI can be deployed as a Vite application on Vercel or another compatible hosting platform.
 
-### Check 1: Make sure `.env` exists
+Configure these environment variables in the hosting platform:
+
+```text
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+```
+
+Do not commit production environment values to GitHub.
+
+The repository includes `vercel.json` to support client-side React Router routes when deployed to Vercel.
+
+---
+
+## 9. Application Routes
+
+The current application includes these main routes:
+
+| Route | Purpose |
+|---|---|
+| `/` | ResumeAI home page |
+| `/builder` | Resume builder |
+| `/analyzer` | Resume analyzer |
+| `/analysis` | Analysis view |
+| `/skills` | Skills guidance |
+| `/suggestions` | Resume improvement suggestions |
+| `/interview` | Interview preparation |
+| `/compare` | Resume comparison |
+| `/roadmap` | Career/skill roadmap |
+| `/profile` | User profile |
+| `/auth` | Authentication |
+
+---
+
+## 10. Troubleshooting
+
+### Blank white page
+
+Check that `.env` exists:
 
 ```bash
 ls -la .env
 ```
 
-### Check 2: Verify your environment variables
-
-Make sure the required values in `.env` are configured correctly.
-
-### Check 3: Restart the development server
-
-Stop the server:
+Verify that the Supabase environment variables are configured correctly, then restart the development server:
 
 ```text
 Ctrl + C
 ```
 
-Then start it again:
-
 ```bash
 npm run dev
 ```
 
-### Check 4: Check the browser console
+Also check the browser Developer Tools console for JavaScript or configuration errors.
 
-Open your browser Developer Tools and check the **Console** for JavaScript or configuration errors.
+### Authentication problems
 
-### Check 5: Check Supabase configuration
+Check:
 
-Make sure your Supabase project is correctly configured and that the required database migrations and Edge Functions have been deployed.
+1. `VITE_SUPABASE_URL` points to the intended Supabase project.
+2. `VITE_SUPABASE_PUBLISHABLE_KEY` belongs to the same project.
+3. Supabase Auth providers are configured correctly.
+4. Google OAuth redirect settings match the deployed/local application origin.
+5. The deployment was rebuilt after changing Vercel environment variables.
+
+### Direct route returns 404 on Vercel
+
+Make sure the deployment includes the repository's `vercel.json` SPA rewrite configuration and that the latest commit has been deployed.
 
 ---
 
-## 8. Useful Commands
+## 11. Useful Commands
 
 ### Start development server
 
@@ -320,19 +344,31 @@ npm run build
 npm run preview
 ```
 
-### Install dependencies
+### Lint
 
 ```bash
-npm install
+npm run lint
 ```
 
-### Check Supabase CLI
+### Run tests
+
+```bash
+npm test
+```
+
+### Run tests in watch mode
+
+```bash
+npm run test:watch
+```
+
+### Supabase CLI help
 
 ```bash
 npx supabase --help
 ```
 
-### Check database migrations
+### List migrations
 
 ```bash
 npx supabase migration list
@@ -344,7 +380,7 @@ npx supabase migration list
 npx supabase db push --dry-run
 ```
 
-### Deploy database migrations
+### Apply database migrations
 
 ```bash
 npx supabase db push
