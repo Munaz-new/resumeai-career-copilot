@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Upload, Puzzle, Lightbulb,
   MessageSquareText, Clock, ChevronLeft, ChevronRight, Sparkles,
-  LogOut, GitCompare, FilePlus,
+  LogOut, GitCompare, FilePlus, X,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,13 @@ const navItems = [
   { title: "History", url: "/profile", icon: Clock },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({
+  mobileOpen = false,
+  onMobileClose,
+}: {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { user, isGuest, signOut } = useAuth();
@@ -28,13 +34,24 @@ export function AppSidebar() {
   const initial = user?.email?.[0]?.toUpperCase() ?? "U";
 
   return (
-    <aside
-      className={cn(
-        "flex flex-col shrink-0 transition-all duration-300 border-r border-sidebar-border",
-        collapsed ? "w-[68px]" : "w-[260px]"
+    <>
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          onClick={onMobileClose}
+          className="fixed inset-0 z-40 bg-foreground/30 md:hidden"
+        />
       )}
-      style={{ background: "hsl(var(--sidebar-background))" }}
-    >
+      <aside
+        className={cn(
+          "flex flex-col shrink-0 border-r border-sidebar-border transition-transform duration-300 md:relative md:translate-x-0 md:transition-[width]",
+          "fixed inset-y-0 left-0 z-50 w-[260px] -translate-x-full md:static md:z-auto",
+          mobileOpen && "translate-x-0",
+          collapsed ? "md:w-[68px]" : "md:w-[260px]"
+        )}
+        style={{ background: "hsl(var(--sidebar-background))" }}
+      >
       {/* Logo */}
       <div
         className="flex items-center gap-3 px-4 h-14 border-b"
@@ -45,6 +62,14 @@ export function AppSidebar() {
           alt="ResumeAI"
           className="w-8 h-8 shrink-0 object-contain"
         />
+        <button
+          type="button"
+          onClick={onMobileClose}
+          aria-label="Close navigation menu"
+          className="ml-auto rounded-lg p-2 text-muted-foreground hover:bg-sidebar-accent hover:text-foreground md:hidden"
+        >
+          <X className="w-5 h-5" />
+        </button>
         {!collapsed && (
           <div className="flex flex-col leading-tight">
             <span className="font-heading font-bold text-[16px] tracking-tight text-foreground">
@@ -65,6 +90,7 @@ export function AppSidebar() {
             <Link
               key={item.url}
               to={item.url}
+              onClick={onMobileClose}
               className={cn("nav-item", isActive && "nav-item-active")}
             >
               <item.icon className="w-[18px] h-[18px] shrink-0" />
@@ -145,6 +171,7 @@ export function AppSidebar() {
           )}
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

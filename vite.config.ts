@@ -5,6 +5,7 @@ import path from "path";
   export default defineConfig(() => ({
   server: {
     host: "::",
+    allowedHosts: ["sb-5bbl37tzxcim.vercel.run"],
     port: 8080,
     hmr: {
       overlay: false,
