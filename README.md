@@ -21,6 +21,25 @@ ResumeAI is an AI-powered career assistant for students, freshers, and early-car
 
 ---
 
+## UI Reference
+
+The current ResumeAI dashboard is designed as a clean, professional career/HR-tech workspace with a light interface, blue accent system, rounded cards, and a clear sidebar navigation.
+
+### Dashboard reference
+
+The dashboard reference used during product development includes:
+
+- ResumeAI branding and Career Copilot subtitle
+- Dashboard, Resume Builder, Resume Analyzer, Skills Match, Suggestions, Interview Prep, Job Compare, Career GPS, and History navigation
+- Guest-mode notice with an option to sign in and save progress
+- Latest resume card with ATS score and recruiter assessment
+- Quick actions for Upload Resume, Resume Builder, Career GPS, and Job Compare
+- Responsive, uncluttered layout intended for student and early-career users
+
+> **Design direction:** Keep the interface professional, trustworthy, modern, and HR-tech focused. Avoid futuristic/neon/cyberpunk or overly flashy AI visuals. The real application UI should remain the source of truth for future product demonstrations and documentation.
+
+---
+
 ## Tech Stack
 
 - React 18
