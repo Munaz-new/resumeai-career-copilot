@@ -1,3 +1,4 @@
+<img width="1894" height="820" alt="screenshot-2026-09-05_20-47-47" src="https://github.com/user-attachments/assets/46b5e282-a2dd-42d9-891b-5936852d2aec" />
 # ResumeAI 🚀
 
 ResumeAI is an AI-powered career assistant for students, freshers, and early-career professionals. It helps users build and improve resumes, analyze ATS-style compatibility, prepare for interviews, and plan the skills needed for their target roles.
