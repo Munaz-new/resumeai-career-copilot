@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Upload, Puzzle, Lightbulb,
   MessageSquareText, Clock, ChevronLeft, ChevronRight, Sparkles,
-  LogOut, GitCompare, FilePlus,
+  LogOut, GitCompare, FilePlus, X,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -20,51 +20,71 @@ const navItems = [
   { title: "History", url: "/profile", icon: Clock },
 ];
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function AppSidebar({ mobileOpen = false, onMobileClose }: AppSidebarProps) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { user, isGuest, signOut } = useAuth();
 
   const initial = user?.email?.[0]?.toUpperCase() ?? "U";
 
+  const handleNav = () => onMobileClose?.();
+
   return (
     <aside
       className={cn(
-        "flex flex-col shrink-0 transition-all duration-300 border-r border-sidebar-border",
-        collapsed ? "w-[68px]" : "w-[260px]"
+        "flex flex-col shrink-0 border-r border-sidebar-border transition-transform duration-300",
+        "fixed inset-y-0 left-0 z-50 w-[260px] md:relative md:z-auto md:translate-x-0",
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
+        collapsed ? "md:w-[68px]" : "md:w-[260px]"
       )}
       style={{ background: "hsl(var(--sidebar-background))" }}
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-3 px-4 h-14 border-b"
+        className="flex items-center justify-between gap-3 px-4 h-14 border-b"
         style={{ borderColor: "hsl(var(--sidebar-border))" }}
       >
-        <img
-          src="/branding/resumeai-icon.png"
-          alt="ResumeAI"
-          className="w-8 h-8 shrink-0 object-contain"
-        />
-        {!collapsed && (
-          <div className="flex flex-col leading-tight">
-            <span className="font-heading font-bold text-[16px] tracking-tight text-foreground">
-              ResumeAI
-            </span>
-            <span className="text-[10px] text-muted-foreground font-medium">
-              Career Copilot
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-3 min-w-0">
+          <img
+            src="/branding/resumeai-icon.png"
+            alt="ResumeAI"
+            className="w-8 h-8 shrink-0 object-contain"
+          />
+          {(!collapsed || mobileOpen) && (
+            <div className="flex flex-col leading-tight min-w-0">
+              <span className="font-heading font-bold text-[16px] tracking-tight text-foreground">
+                ResumeAI
+              </span>
+              <span className="text-[10px] text-muted-foreground font-medium">
+                Career Copilot
+              </span>
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="md:hidden inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+          onClick={onMobileClose}
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.url;
           return (
             <Link
               key={item.url}
               to={item.url}
+              onClick={handleNav}
               className={cn("nav-item", isActive && "nav-item-active")}
             >
               <item.icon className="w-[18px] h-[18px] shrink-0" />
@@ -77,8 +97,8 @@ export function AppSidebar() {
       {/* Auth status */}
       <div className="px-3 py-3" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}>
         {isGuest ? (
-          collapsed ? (
-            <Link to="/auth" className="nav-item w-full justify-center" title="Save Progress">
+          collapsed && !mobileOpen ? (
+            <Link to="/auth" onClick={handleNav} className="nav-item w-full justify-center" title="Save Progress">
               <Sparkles className="w-[18px] h-[18px] shrink-0" />
             </Link>
           ) : (
@@ -92,13 +112,14 @@ export function AppSidebar() {
               </p>
               <Link
                 to="/auth"
+                onClick={handleNav}
                 className="block text-center text-xs font-semibold bg-primary text-primary-foreground rounded-lg px-3 py-2 hover:opacity-90 transition-opacity"
               >
                 Save Progress
               </Link>
             </div>
           )
-        ) : collapsed ? (
+        ) : collapsed && !mobileOpen ? (
           <div className="flex flex-col items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
               {initial}
