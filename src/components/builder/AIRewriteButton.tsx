@@ -51,7 +51,19 @@ export function AIRewriteButton({
       const { data, error } = await supabase.functions.invoke("rewrite-resume", {
         body: { bullets: [text], jobDescription: jobDescription || "", mode, targetRole },
       });
-      if (error) throw error;
+
+      if (error) {
+        const message = error.message || "";
+        if (/temporarily busy|rate limit|try again/i.test(message)) {
+          throw new Error("AI service is temporarily busy. Please try again in a moment.");
+        }
+        throw error;
+      }
+
+      const backendError = data?.error;
+      if (backendError) {
+        throw new Error(backendError);
+      }
 
       const improved = data?.rewrites?.[0]?.improved;
       if (improved) {
@@ -68,7 +80,8 @@ export function AIRewriteButton({
       }
     } catch (e) {
       setPhase("idle");
-      toast.error("AI rewrite failed");
+      const message = e instanceof Error ? e.message : "";
+      toast.error(message || "AI rewrite failed");
     }
   };
 
