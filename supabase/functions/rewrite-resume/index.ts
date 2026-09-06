@@ -13,8 +13,9 @@ const ALLOWED_MODES = ["bullet", "section", "full"] as const;
 
 const PRIMARY_MODEL = "gemini-3.5-flash";
 const FALLBACK_MODEL = "gemini-3.5-flash-lite";
-const MAX_PRIMARY_ATTEMPTS = 2;
-const RETRY_DELAYS_MS = [700, 1400];
+const MAX_PRIMARY_ATTEMPTS = 3;
+const RETRY_DELAYS_MS = [1000, 2000, 4000];
+const FALLBACK_RETRY_DELAY_MS = 1500;
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -171,7 +172,7 @@ ${safeBullets.map((b, i) => `${i + 1}. ${b}`).join("\n")}`;
     let lastErrorText = "";
 
     // Gemini can temporarily return 503/429/5xx during capacity or transient
-    // service issues. Retry the primary model briefly before using the fallback.
+    // service issues. Use exponential backoff before switching models.
     for (let attempt = 0; attempt < MAX_PRIMARY_ATTEMPTS; attempt++) {
       response = await callGemini({
         apiKey: GEMINI_API_KEY,
@@ -186,26 +187,33 @@ ${safeBullets.map((b, i) => `${i + 1}. ${b}`).join("\n")}`;
       console.error(`Gemini ${PRIMARY_MODEL} attempt ${attempt + 1} failed:`, response.status, lastErrorText);
 
       if (!isRetryableStatus(response.status) || attempt === MAX_PRIMARY_ATTEMPTS - 1) break;
-      await sleep(RETRY_DELAYS_MS[attempt] ?? 1400);
+      await sleep(RETRY_DELAYS_MS[attempt] ?? 4000);
     }
 
     // If the primary model is temporarily unavailable, try the lower-latency
-    // Flash-Lite model. It is a stable Gemini 3.5 model designed for high-volume use.
+    // Flash-Lite model. Give the fallback one retry for transient capacity errors.
     if (!response?.ok && response && isRetryableStatus(response.status)) {
       console.warn(`Falling back from ${PRIMARY_MODEL} to ${FALLBACK_MODEL}`);
-      const fallbackResponse = await callGemini({
-        apiKey: GEMINI_API_KEY,
-        model: FALLBACK_MODEL,
-        systemPrompt,
-        userPrompt,
-      });
 
-      if (fallbackResponse.ok) {
-        response = fallbackResponse;
-      } else {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const fallbackResponse = await callGemini({
+          apiKey: GEMINI_API_KEY,
+          model: FALLBACK_MODEL,
+          systemPrompt,
+          userPrompt,
+        });
+
+        if (fallbackResponse.ok) {
+          response = fallbackResponse;
+          break;
+        }
+
         lastErrorText = await fallbackResponse.text();
-        console.error(`Gemini ${FALLBACK_MODEL} fallback failed:`, fallbackResponse.status, lastErrorText);
+        console.error(`Gemini ${FALLBACK_MODEL} fallback attempt ${attempt + 1} failed:`, fallbackResponse.status, lastErrorText);
         response = fallbackResponse;
+
+        if (!isRetryableStatus(fallbackResponse.status) || attempt === 1) break;
+        await sleep(FALLBACK_RETRY_DELAY_MS);
       }
     }
 
@@ -214,28 +222,36 @@ ${safeBullets.map((b, i) => `${i + 1}. ${b}`).join("\n")}`;
 
       if (status === 429) {
         return jsonResponse(
-          { error: "AI rate limit reached. Please wait a moment and try again." },
+          { error: "AI rate limit reached. Please wait a moment and try again.", code: "AI_RATE_LIMITED" },
           429,
         );
       }
 
       if (status === 401 || status === 403) {
         return jsonResponse(
-          { error: "AI service authentication failed." },
+          { error: "AI service authentication failed.", code: "AI_AUTH_ERROR" },
           502,
         );
       }
 
       if (status === 404) {
         return jsonResponse(
-          { error: "AI model is unavailable. Please try again later." },
+          { error: "AI model is unavailable. Please try again later.", code: "AI_MODEL_UNAVAILABLE" },
           502,
+        );
+      }
+
+      if (isRetryableStatus(status)) {
+        console.error("Gemini final transient failure:", status, lastErrorText);
+        return jsonResponse(
+          { error: "AI service is temporarily busy. Please try again in a moment.", code: "AI_TEMPORARILY_BUSY" },
+          503,
         );
       }
 
       console.error("Gemini final failure:", status, lastErrorText);
       return jsonResponse(
-        { error: "AI rewrite is temporarily unavailable. Please try again in a moment." },
+        { error: "AI rewrite is temporarily unavailable. Please try again in a moment.", code: "AI_UNAVAILABLE" },
         502,
       );
     }
@@ -246,7 +262,7 @@ ${safeBullets.map((b, i) => `${i + 1}. ${b}`).join("\n")}`;
     if (!text) {
       console.error("Gemini returned no text:", JSON.stringify(data));
       return jsonResponse(
-        { error: "AI returned an empty response. Please try again." },
+        { error: "AI returned an empty response. Please try again.", code: "AI_EMPTY_RESPONSE" },
         502,
       );
     }
@@ -258,7 +274,7 @@ ${safeBullets.map((b, i) => `${i + 1}. ${b}`).join("\n")}`;
     } catch (e) {
       console.error("Gemini JSON parse error:", e, text);
       return jsonResponse(
-        { error: "AI returned an invalid response. Please try again." },
+        { error: "AI returned an invalid response. Please try again.", code: "AI_INVALID_RESPONSE" },
         502,
       );
     }
