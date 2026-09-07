@@ -28,7 +28,7 @@ const TEMPLATES: { id: TemplateId; label: string; desc: string }[] = [
   { id: "ats-pro", label: "ATS Professional", desc: "Clean, recruiter-safe" },
   { id: "fresher-tech", label: "Fresher Tech", desc: "Student focused" },
   { id: "modern-pro", label: "Modern Professional", desc: "Balanced" },
-  { id: "creative-tech", label: "Creative Tech", desc: "For designers" },
+  { id: "creative-tech", label: "One Page", desc: "Modern sidebar" },
 ];
 
 export default function BuilderPage() {
