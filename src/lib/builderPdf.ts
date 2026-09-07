@@ -6,25 +6,51 @@ import { exportResumePdfSafe } from "./builderPdfFallback";
 /**
  * WYSIWYG PDF export with automatic fallback.
  *
- * Tries to rasterize the live preview DOM (so the PDF matches the selected
- * template exactly). If html2canvas throws — typically due to modern CSS
- * color functions like oklch()/color-mix() inherited from theme tokens —
- * we fall back to a safe text-based PDF so the user always gets a download.
+ * The live preview is responsive, so its width can become very narrow on a
+ * phone. Capturing that responsive width directly makes text wrap into many
+ * extra lines and can turn a one-page resume into a multi-page PDF.
  *
- * Returns the export mode actually used.
+ * For PDF generation we therefore render the preview at its desktop/export
+ * width, independent of the device viewport, and remove the preview's
+ * screen-only minimum height. The resulting canvas is then fitted/paginated
+ * against the PDF page size.
  */
 export type ExportMode = "wysiwyg" | "fallback";
 
 const UNSUPPORTED_COLOR_RE = /(oklch|oklab|lab\(|lch\(|color\(|color-mix)/i;
+const PDF_RENDER_WIDTH = 760;
 
 function sanitizeClonedDoc(doc: Document, root: HTMLElement) {
-  // Force exact color rendering and a clean white background on the clone.
+  // Render the responsive preview at a stable desktop width for PDF output.
+  // This prevents mobile text wrapping from changing the PDF's layout.
+  root.style.width = `${PDF_RENDER_WIDTH}px`;
+  root.style.minWidth = `${PDF_RENDER_WIDTH}px`;
+  root.style.maxWidth = `${PDF_RENDER_WIDTH}px`;
+  root.style.minHeight = "0";
+  root.style.height = "auto";
+  root.style.margin = "0";
+  root.style.boxShadow = "none";
+  root.style.borderRadius = "0";
+  root.style.background = "#ffffff";
+
   const style = doc.createElement("style");
   style.textContent = `
-    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    [data-resume-preview] {
+      width: ${PDF_RENDER_WIDTH}px !important;
+      min-width: ${PDF_RENDER_WIDTH}px !important;
+      max-width: ${PDF_RENDER_WIDTH}px !important;
+      min-height: 0 !important;
+      height: auto !important;
+      margin: 0 !important;
+      box-sizing: border-box !important;
+    }
   `;
   doc.head.appendChild(style);
-  root.style.background = "#ffffff";
 
   // Walk every element and replace any computed color value that uses a
   // CSS function html2canvas cannot parse with a safe fallback.
@@ -70,7 +96,8 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
   try {
     console.info("[PDF] starting WYSIWYG export", {
       template: draft.template,
-      width: element.scrollWidth,
+      viewportWidth: element.clientWidth,
+      exportWidth: PDF_RENDER_WIDTH,
       height: element.scrollHeight,
     });
 
@@ -79,7 +106,8 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
       backgroundColor: "#ffffff",
       useCORS: true,
       logging: false,
-      windowWidth: element.scrollWidth,
+      width: PDF_RENDER_WIDTH,
+      windowWidth: PDF_RENDER_WIDTH,
       imageTimeout: 15000,
       foreignObjectRendering: false,
       removeContainer: true,
@@ -89,28 +117,41 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     const pdf = new jsPDF({ unit: "pt", format: "letter", compress: true });
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const imgW = pageW;
-    const imgH = (canvas.height * imgW) / canvas.width;
     const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-    if (imgH <= pageH) {
-      pdf.addImage(imgData, "JPEG", 0, 0, imgW, imgH);
+    // Convert the captured canvas to PDF points while preserving its aspect
+    // ratio. Fit a genuinely one-page resume to one page; only paginate when
+    // the content is actually taller than the available page height.
+    const naturalImgH = (canvas.height * pageW) / canvas.width;
+    const fitScale = naturalImgH <= pageH ? 1 : pageH / naturalImgH;
+    const imgW = pageW * fitScale;
+    const imgH = naturalImgH * fitScale;
+    const x = (pageW - imgW) / 2;
+
+    if (naturalImgH <= pageH) {
+      pdf.addImage(imgData, "JPEG", x, 0, imgW, imgH);
     } else {
-      let heightLeft = imgH;
+      // Preserve the original export width for real multi-page resumes.
+      const fullImgH = naturalImgH;
+      let heightLeft = fullImgH;
       let position = 0;
-      pdf.addImage(imgData, "JPEG", 0, position, imgW, imgH);
+      pdf.addImage(imgData, "JPEG", 0, position, pageW, fullImgH);
       heightLeft -= pageH;
       while (heightLeft > 0) {
-        position = heightLeft - imgH;
+        position = heightLeft - fullImgH;
         pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, position, imgW, imgH);
+        pdf.addImage(imgData, "JPEG", 0, position, pageW, fullImgH);
         heightLeft -= pageH;
       }
     }
 
     const name = (draft.contact.name || "draft").replace(/\s+/g, "_");
     pdf.save(`Resume-${name}.pdf`);
-    console.info("[PDF] WYSIWYG export complete");
+    console.info("[PDF] WYSIWYG export complete", {
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      pages: pdf.getNumberOfPages(),
+    });
     return "wysiwyg";
   } catch (err) {
     console.error("[PDF] WYSIWYG export failed, using safe fallback", err);
