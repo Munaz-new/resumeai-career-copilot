@@ -1,3 +1,5 @@
+export * from "./analysisStore";
+
 import { analyzeResume as legacyAnalyzeResume } from "./analysisStore";
 import type { AnalysisResult, DebugInfo } from "./analysisStore";
 import { buildScoreBreakdown } from "./scoreBreakdown";
@@ -30,82 +32,26 @@ const STOP_WORDS = new Set([
 ]);
 
 const ALIASES: Record<string, string> = {
-  "js": "javascript",
-  "es6": "javascript",
-  "ecmascript": "javascript",
-  "ts": "typescript",
-  "python3": "python",
-  "python 3": "python",
-  "c sharp": "c#",
-  "csharp": "c#",
-  "cpp": "c++",
-  "cplusplus": "c++",
-  "golang": "go",
-  "react.js": "react",
-  "reactjs": "react",
-  "node": "node.js",
-  "nodejs": "node.js",
-  "node js": "node.js",
-  "next": "next.js",
-  "nextjs": "next.js",
-  "next js": "next.js",
-  "vue.js": "vue",
-  "vuejs": "vue",
-  "angular.js": "angular",
-  "angularjs": "angular",
-  "express.js": "express",
-  "expressjs": "express",
-  "springboot": "spring boot",
-  "dotnet": ".net",
-  "dot net": ".net",
-  "amazon web services": "aws",
-  "amazon aws": "aws",
-  "google cloud": "gcp",
-  "google cloud platform": "gcp",
-  "microsoft azure": "azure",
-  "k8s": "kubernetes",
-  "restful api": "rest api",
-  "restful apis": "rest api",
-  "restful": "rest api",
-  "rest-api": "rest api",
-  "postgres": "postgresql",
-  "mongo": "mongodb",
-  "elastic search": "elasticsearch",
-  "dynamo db": "dynamodb",
-  "dynamo": "dynamodb",
-  "ml": "machine learning",
-  "artificial intelligence": "ai",
-  "dl": "deep learning",
-  "natural language processing": "nlp",
-  "visual studio code": "vs code",
-  "vscode": "vs code",
-  "microsoft word": "ms word",
-  "ms-word": "ms word",
-  "microsoft excel": "excel",
-  "ms excel": "excel",
-  "ms-excel": "excel",
-  "microsoft powerpoint": "powerpoint",
-  "ms powerpoint": "powerpoint",
-  "ppt": "powerpoint",
-  "google workspace": "google docs",
-  "g suite": "google docs",
-  "team work": "teamwork",
-  "team player": "teamwork",
-  "communication skills": "communication",
-  "problem-solving": "problem solving",
-  "analytical skills": "analytical thinking",
-  "computer basics": "basic computer",
-  "computer skills": "basic computer",
-  "computer literacy": "basic computer",
-  "time-management": "time management",
-  "detail-oriented": "attention to detail",
-  "detail oriented": "attention to detail",
-  "self-motivated": "self motivation",
-  "self motivated": "self motivation",
-  "multi-tasking": "multitasking",
-  "multi tasking": "multitasking",
-  "customer support": "customer service",
-  "client support": "customer service",
+  "js": "javascript", "es6": "javascript", "ecmascript": "javascript", "ts": "typescript",
+  "python3": "python", "python 3": "python", "c sharp": "c#", "csharp": "c#", "cpp": "c++",
+  "cplusplus": "c++", "golang": "go", "react.js": "react", "reactjs": "react", "node": "node.js",
+  "nodejs": "node.js", "node js": "node.js", "next": "next.js", "nextjs": "next.js", "next js": "next.js",
+  "vue.js": "vue", "vuejs": "vue", "angular.js": "angular", "angularjs": "angular",
+  "express.js": "express", "expressjs": "express", "springboot": "spring boot", "dotnet": ".net",
+  "dot net": ".net", "amazon web services": "aws", "amazon aws": "aws", "google cloud": "gcp",
+  "google cloud platform": "gcp", "microsoft azure": "azure", "k8s": "kubernetes",
+  "restful api": "rest api", "restful apis": "rest api", "restful": "rest api", "rest-api": "rest api",
+  "postgres": "postgresql", "mongo": "mongodb", "elastic search": "elasticsearch", "dynamo db": "dynamodb",
+  "dynamo": "dynamodb", "ml": "machine learning", "artificial intelligence": "ai", "dl": "deep learning",
+  "natural language processing": "nlp", "visual studio code": "vs code", "vscode": "vs code",
+  "microsoft word": "ms word", "ms-word": "ms word", "microsoft excel": "excel", "ms excel": "excel",
+  "ms-excel": "excel", "microsoft powerpoint": "powerpoint", "ms powerpoint": "powerpoint", "ppt": "powerpoint",
+  "google workspace": "google docs", "g suite": "google docs", "team work": "teamwork", "team player": "teamwork",
+  "communication skills": "communication", "problem-solving": "problem solving", "analytical skills": "analytical thinking",
+  "computer basics": "basic computer", "computer skills": "basic computer", "computer literacy": "basic computer",
+  "time-management": "time management", "detail-oriented": "attention to detail", "detail oriented": "attention to detail",
+  "self-motivated": "self motivation", "self motivated": "self motivation", "multi-tasking": "multitasking",
+  "multi tasking": "multitasking", "customer support": "customer service", "client support": "customer service",
 };
 
 function escapeRegExp(value: string): string {
@@ -127,44 +73,30 @@ function normalizeText(text: string): string {
 function containsTerm(text: string, term: string): boolean {
   const normalizedTerm = term.toLowerCase().replace(/\s+/g, " ").trim();
   if (!normalizedTerm) return false;
-  const pattern = normalizedTerm
-    .split(" ")
-    .map(escapeRegExp)
-    .join("\\s+");
+  const pattern = normalizedTerm.split(" ").map(escapeRegExp).join("\\s+");
   return new RegExp(`(?:^|[^a-z0-9])${pattern}(?=$|[^a-z0-9])`, "i").test(text);
 }
 
 function wordTokens(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9+#.\s/-]/g, " ")
-    .split(/\s+/)
+  return text.toLowerCase().replace(/[^a-z0-9+#.\s/-]/g, " ").split(/\s+/)
     .map((word) => word.replace(/^[./-]+|[./-]+$/g, ""))
     .filter((word) => word.length >= 4 && !STOP_WORDS.has(word) && !/^\d+$/.test(word));
 }
 
-function unique<T>(values: T[]): T[] {
-  return [...new Set(values)];
-}
+function unique<T>(values: T[]): T[] { return [...new Set(values)]; }
 
 function getSkillCandidates(result: AnalysisResult): string[] {
-  return unique([...result.matchedSkills, ...result.missingSkills]
-    .map((skill) => skill.toLowerCase().trim())
-    .filter(Boolean));
+  return unique([...result.matchedSkills, ...result.missingSkills].map((skill) => skill.toLowerCase().trim()).filter(Boolean));
 }
 
 function calculateSkillMatch(result: AnalysisResult, resumeText: string, jdText: string) {
   const resumeNorm = normalizeText(resumeText);
   const jdNorm = normalizeText(jdText);
   const candidates = getSkillCandidates(result);
-
   const requiredSkills = candidates.filter((skill) => containsTerm(jdNorm, skill));
   const matchedSkills = requiredSkills.filter((skill) => containsTerm(resumeNorm, skill));
   const missingSkills = requiredSkills.filter((skill) => !containsTerm(resumeNorm, skill));
-  const skillsMatch = requiredSkills.length > 0
-    ? Math.round((matchedSkills.length / requiredSkills.length) * 100)
-    : 0;
-
+  const skillsMatch = requiredSkills.length > 0 ? Math.round((matchedSkills.length / requiredSkills.length) * 100) : 0;
   return { requiredSkills, matchedSkills, missingSkills, skillsMatch };
 }
 
@@ -177,31 +109,21 @@ function calculateKeywordMatch(
   const resumeNorm = normalizeText(resumeText);
   const jdNorm = normalizeText(jdText);
   const skillSet = new Set(exactSkills.requiredSkills);
-
-  // Skills are valid ATS keywords, but generic hiring boilerplate is not.
   const skillKeywords = exactSkills.requiredSkills;
   const lexicalKeywords = unique(wordTokens(jdNorm))
     .filter((word) => !skillSet.has(word))
     .filter((word) => !skillKeywords.some((skill) => skill.split(/\s+/).includes(word)));
-
   const matchedSkillKeywords = skillKeywords.filter((skill) => containsTerm(resumeNorm, skill));
   const matchedLexicalKeywords = lexicalKeywords.filter((word) => containsTerm(resumeNorm, word));
-
   const total = skillKeywords.length + lexicalKeywords.length;
   if (total === 0) return result.keywordMatch;
-
   return Math.round(((matchedSkillKeywords.length + matchedLexicalKeywords.length) / total) * 100);
 }
 
-export function analyzeResume(
-  resumeText: string,
-  jobDescription: string,
-  roastMode: boolean
-): { result: AnalysisResult; debug: DebugInfo } {
+export function analyzeResume(resumeText: string, jobDescription: string, roastMode: boolean): { result: AnalysisResult; debug: DebugInfo } {
   const legacy = legacyAnalyzeResume(resumeText, jobDescription, roastMode);
   const exactSkills = calculateSkillMatch(legacy.result, resumeText, jobDescription);
   const keywordMatch = calculateKeywordMatch(legacy.result, resumeText, jobDescription, exactSkills);
-
   const correctedResult: AnalysisResult = {
     ...legacy.result,
     keywordMatch,
@@ -209,26 +131,15 @@ export function analyzeResume(
     matchedSkills: exactSkills.matchedSkills.map((skill) => skill.charAt(0).toUpperCase() + skill.slice(1)),
     missingSkills: exactSkills.missingSkills.map((skill) => skill.charAt(0).toUpperCase() + skill.slice(1)),
   };
-
   correctedResult.atsScore = Math.max(0, Math.min(100, Math.round(
-    keywordMatch * 0.35 +
-    exactSkills.skillsMatch * 0.20 +
-    (correctedResult.parseability ?? 100) * 0.15 +
-    correctedResult.formattingScore * 0.10 +
-    correctedResult.readabilityScore * 0.10 +
-    correctedResult.sectionCompleteness * 0.05 +
-    (correctedResult.achievementQuality ?? 0) * 0.05 -
-    (exactSkills.skillsMatch < 40 ? 5 : 0)
+    keywordMatch * 0.35 + exactSkills.skillsMatch * 0.20 + (correctedResult.parseability ?? 100) * 0.15 +
+    correctedResult.formattingScore * 0.10 + correctedResult.readabilityScore * 0.10 + correctedResult.sectionCompleteness * 0.05 +
+    (correctedResult.achievementQuality ?? 0) * 0.05 - (exactSkills.skillsMatch < 40 ? 5 : 0)
   )));
-
   correctedResult.scoreBreakdown = buildScoreBreakdown(correctedResult);
   correctedResult.jobReadiness = Math.min(100, Math.round(
-    correctedResult.atsScore * 0.4 +
-    exactSkills.skillsMatch * 0.3 +
-    correctedResult.sectionCompleteness * 0.15 +
-    correctedResult.readabilityScore * 0.15
+    correctedResult.atsScore * 0.4 + exactSkills.skillsMatch * 0.3 + correctedResult.sectionCompleteness * 0.15 + correctedResult.readabilityScore * 0.15
   ));
-
   const debug: DebugInfo = {
     ...legacy.debug,
     matchedKeywordsCount: Math.round((keywordMatch / 100) * Math.max(1, legacy.debug.totalJDKeywords)),
@@ -236,6 +147,5 @@ export function analyzeResume(
     totalRequiredSkills: exactSkills.requiredSkills.length,
     formulaOutput: correctedResult.atsScore,
   };
-
   return { result: correctedResult, debug };
 }
