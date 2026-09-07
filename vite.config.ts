@@ -14,6 +14,7 @@ import path from "path";
   plugins: [react()],
   resolve: {
     alias: {
+      "@/lib/analysisStore": path.resolve(__dirname, "./src/lib/analysisAccuracyV2.ts"),
       "@": path.resolve(__dirname, "./src"),
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
