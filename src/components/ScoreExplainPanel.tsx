@@ -16,7 +16,7 @@ export function ScoreExplainPanel({ result }: { result: AnalysisResult }) {
       >
         <h3 className="font-heading font-bold text-foreground flex items-center gap-2">
           <Info className="w-4 h-4 text-primary" />
-          Why this score?
+          ATS score breakdown
         </h3>
         {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
       </button>
