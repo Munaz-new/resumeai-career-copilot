@@ -59,6 +59,22 @@ describe("accurate keyword and skill matching", () => {
     expect(result.keywordMatch).toBeGreaterThanOrEqual(60);
   });
 
+  it("keeps repeated and technical JD terms meaningful", () => {
+    const { result } = analyzeResume(
+      baseResume,
+      `
+        Frontend Developer
+        Build responsive web applications with React and TypeScript.
+        React components should be reusable and maintainable.
+        Integrate REST APIs and improve web application performance.
+        Use Git for collaborative development and testing.
+      `,
+      false
+    );
+
+    expect(result.keywordMatch).toBeGreaterThan(45);
+  });
+
   it("keeps score breakdown aligned with the corrected score", () => {
     const { result } = analyzeResume(
       baseResume,
