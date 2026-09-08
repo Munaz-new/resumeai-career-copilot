@@ -81,7 +81,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   const contentW = pageW - margin * 2;
   const now = new Date().toLocaleString();
 
-  // PAGE 1: AI career intelligence dashboard
+  // PAGE 1: compact AI career intelligence dashboard
   doc.setFillColor(...C.navy);
   doc.rect(0, 0, pageW, 9, "F");
 
@@ -100,7 +100,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.text(fileName || "Pasted Resume", pageW - margin, 29, { align: "right" });
 
   // Target role strip
-  roundedCard(doc, margin, 37, contentW, 18, C.purpleSoft, [221, 214, 254]);
+  roundedCard(doc, margin, 37, contentW, 17, C.purpleSoft, [221, 214, 254]);
   doc.setTextColor(...C.purple);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(6.5);
@@ -114,7 +114,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.text("Match quality  •  ATS compatibility  •  recruiter readiness", pageW - margin - 7, 47, { align: "right" });
 
   // KPI cards
-  const cardY = 61;
+  const cardY = 59;
   const gap = 4;
   const cardW = (contentW - gap * 3) / 4;
   const metrics = [
@@ -127,25 +127,25 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   metrics.forEach(([label, value], i) => {
     const x = margin + i * (cardW + gap);
     const fill = i === 0 ? C.navy : C.white;
-    roundedCard(doc, x, cardY, cardW, 34, fill, i === 0 ? C.navy : C.line);
+    roundedCard(doc, x, cardY, cardW, 31, fill, i === 0 ? C.navy : C.line);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(6.5);
     doc.setTextColor(...(i === 0 ? [203, 213, 225] : C.muted));
     doc.text(label, x + 7, cardY + 9);
-    doc.setFontSize(22);
+    doc.setFontSize(21);
     doc.setTextColor(...(i === 0 ? C.white : scoreColor(value)));
-    doc.text(String(value), x + 7, cardY + 24);
+    doc.text(String(value), x + 7, cardY + 23);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...(i === 0 ? [203, 213, 225] : C.muted));
-    doc.text("/ 100", x + 30, cardY + 23.5);
+    doc.text("/ 100", x + 29, cardY + 22.5);
   });
 
-  sectionTitle(doc, "ATS performance", margin, 106);
+  sectionTitle(doc, "ATS performance", margin, 99);
   doc.setTextColor(...C.muted);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
-  doc.text("How each scoring signal contributes to the overall ATS assessment", margin + 39, 106);
+  doc.text("Scoring signals behind the overall ATS assessment", margin + 39, 99);
 
   const breakdown = result.scoreBreakdown ?? [];
   const fallback = [
@@ -171,7 +171,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
       })
     : fallback.map(([label, score]) => [label, clamp(score)] as [string, number]);
 
-  let y = 114;
+  let y = 107;
   rows.forEach(([label, score]) => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
@@ -185,11 +185,11 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     doc.setFontSize(6);
     doc.setTextColor(...scoreColor(score));
     doc.text(impactLabel(score).toUpperCase(), pageW - margin - 1, y + 4.5, { align: "right" });
-    y += 8;
+    y += 7;
   });
 
   // Priority cards
-  sectionTitle(doc, "Top priorities", margin, 176);
+  sectionTitle(doc, "Top priorities", margin, 164);
   const priorityItems = (result.weaknesses?.length ? result.weaknesses : result.suggestions ?? [])
     .slice(0, 3).map((item) => professionalRecommendation(item, result));
   const priorities = priorityItems.length ? priorityItems : [
@@ -197,30 +197,30 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     "Strengthen alignment with the target role's required skills.",
     "Review keyword distribution for the target job description.",
   ];
-  const pY = 183;
+  const pY = 171;
   priorities.forEach((item, i) => {
     const x = margin + i * (contentW / 3);
     const w = contentW / 3 - 3;
-    roundedCard(doc, x, pY, w, 28, C.white, C.line);
+    roundedCard(doc, x, pY, w, 25, C.white, C.line);
     doc.setFillColor(...C.purpleSoft);
-    doc.circle(x + 10, pY + 10, 5, "F");
+    doc.circle(x + 10, pY + 9, 5, "F");
     doc.setTextColor(...C.purple);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
-    doc.text(String(i + 1).padStart(2, "0"), x + 10, pY + 12, { align: "center" });
+    doc.text(String(i + 1).padStart(2, "0"), x + 10, pY + 11, { align: "center" });
     doc.setTextColor(...C.ink);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
-    doc.text(doc.splitTextToSize(item, w - 28).slice(0, 3), x + 20, pY + 8);
+    doc.text(doc.splitTextToSize(item, w - 28).slice(0, 3), x + 20, pY + 7);
   });
 
   // Skill intelligence
-  sectionTitle(doc, "Skill intelligence", margin, 222);
+  sectionTitle(doc, "Skill intelligence", margin, 207);
   const skillGap = 6;
   const skillW = (contentW - skillGap) / 2;
-  const skillY = 229;
-  roundedCard(doc, margin, skillY, skillW, 42, C.greenSoft, [187, 247, 208]);
-  roundedCard(doc, margin + skillW + skillGap, skillY, skillW, 42, C.redSoft, [254, 202, 202]);
+  const skillY = 214;
+  roundedCard(doc, margin, skillY, skillW, 38, C.greenSoft, [187, 247, 208]);
+  roundedCard(doc, margin + skillW + skillGap, skillY, skillW, 38, C.redSoft, [254, 202, 202]);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
@@ -229,7 +229,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(...C.ink);
-  doc.text(doc.splitTextToSize(result.matchedSkills.join("  •  ") || "None detected", skillW - 14).slice(0, 4), margin + 7, skillY + 17);
+  doc.text(doc.splitTextToSize(result.matchedSkills.join("  •  ") || "None detected", skillW - 14).slice(0, 3), margin + 7, skillY + 17);
 
   const missingX = margin + skillW + skillGap;
   doc.setFont("helvetica", "bold");
@@ -239,7 +239,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(...C.ink);
-  doc.text(doc.splitTextToSize(result.missingSkills.join("  •  ") || "None detected", skillW - 14).slice(0, 4), missingX + 7, skillY + 17);
+  doc.text(doc.splitTextToSize(result.missingSkills.join("  •  ") || "None detected", skillW - 14).slice(0, 3), missingX + 7, skillY + 17);
 
   // PAGE 2
   doc.addPage();
@@ -259,21 +259,21 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   const readiness = readinessScore >= 80 ? "Industry Ready" : readinessScore >= 60 ? "Job Ready" : readinessScore >= 40 ? "Internship Ready" : "Not Ready";
   const readinessColor = scoreColor(readinessScore);
 
-  roundedCard(doc, margin, 39, contentW, 45, C.purpleSoft, [221, 214, 254]);
+  roundedCard(doc, margin, 39, contentW, 42, C.purpleSoft, [221, 214, 254]);
   doc.setTextColor(...C.purple);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
   doc.text("JOB READINESS", margin + 8, 48);
   doc.setTextColor(...C.ink);
   doc.setFontSize(28);
-  doc.text(String(readinessScore), margin + 8, 69);
+  doc.text(String(readinessScore), margin + 8, 68);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...C.muted);
-  doc.text("/ 100", margin + 31, 68.5);
+  doc.text("/ 100", margin + 31, 67.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...readinessColor);
-  doc.text(readiness, margin + 8, 77);
+  doc.text(readiness, margin + 8, 76);
 
   const barX = margin + 78;
   const barW = contentW - 92;
@@ -291,11 +291,11 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.text("80", barX + barW * 0.8, 69, { align: "center" });
   doc.text("100", barX + barW, 69, { align: "right" });
 
-  sectionTitle(doc, "Strengths & opportunities", margin, 100);
+  sectionTitle(doc, "Strengths & opportunities", margin, 96);
   const halfGap = 6;
   const halfW = (contentW - halfGap) / 2;
-  const boxY = 107;
-  const boxH = 54;
+  const boxY = 103;
+  const boxH = 50;
   roundedCard(doc, margin, boxY, halfW, boxH, C.greenSoft, [187, 247, 208]);
   roundedCard(doc, margin + halfW + halfGap, boxY, halfW, boxH, C.amberSoft, [253, 230, 138]);
 
@@ -307,7 +307,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.2);
   (result.strengths?.slice(0, 5) ?? []).forEach((item, i) => {
-    doc.text(`• ${firstLine(doc, professionalRecommendation(item, result), halfW - 17)}`, margin + 7, boxY + 18 + i * 7);
+    doc.text(`• ${firstLine(doc, professionalRecommendation(item, result), halfW - 17)}`, margin + 7, boxY + 18 + i * 6.5);
   });
 
   const oppX = margin + halfW + halfGap;
@@ -317,25 +317,25 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...C.ink);
   (result.weaknesses?.slice(0, 5) ?? []).forEach((item, i) => {
-    doc.text(`• ${firstLine(doc, professionalRecommendation(item, result), halfW - 17)}`, oppX + 7, boxY + 18 + i * 7);
+    doc.text(`• ${firstLine(doc, professionalRecommendation(item, result), halfW - 17)}`, oppX + 7, boxY + 18 + i * 6.5);
   });
 
-  sectionTitle(doc, "Smart suggestions", margin, 177);
+  sectionTitle(doc, "Smart suggestions", margin, 163);
   const suggestions = result.suggestions?.slice(0, 7).map((item) => professionalRecommendation(item, result)) ?? [];
   autoTable(doc, {
-    startY: 184,
+    startY: 170,
     head: [["#", "Recommended action"]],
     body: suggestions.length ? suggestions.map((s, i) => [String(i + 1).padStart(2, "0"), s]) : [["01", "Review missing skills and strengthen measurable achievements."]],
     theme: "plain",
     margin: { left: margin, right: margin },
-    styles: { fontSize: 8, cellPadding: 4.5, textColor: C.ink, lineColor: C.line },
+    styles: { fontSize: 8, cellPadding: 4, textColor: C.ink, lineColor: C.line },
     headStyles: { fillColor: C.navy, textColor: C.white, fontStyle: "bold" },
     columnStyles: { 0: { cellWidth: 14, fontStyle: "bold", textColor: C.purple, halign: "center" }, 1: { cellWidth: contentW - 14 } },
     alternateRowStyles: { fillColor: [248, 250, 252] },
   });
 
-  let finalY = ((doc as any).lastAutoTable?.finalY ?? 236) + 11;
-  if (finalY > 260) { doc.addPage(); finalY = 24; }
+  let finalY = ((doc as any).lastAutoTable?.finalY ?? 222) + 9;
+  if (finalY > 258) { doc.addPage(); finalY = 24; }
   sectionTitle(doc, "Final score snapshot", margin, finalY);
   finalY += 7;
   autoTable(doc, {
