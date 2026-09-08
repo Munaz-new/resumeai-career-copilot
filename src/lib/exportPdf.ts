@@ -164,7 +164,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     doc.text("/ 100", x + 31, cardY + 24.5);
   });
 
-  sectionTitle(doc, "Why this score", margin, 111);
+  sectionTitle(doc, "ATS score breakdown", margin, 111);
   const breakdown = result.scoreBreakdown ?? [];
   let y = 120;
   const breakdownItems = breakdown.length > 0 ? breakdown : [
@@ -344,7 +344,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setFontSize(8);
   const strengths = result.strengths?.slice(0, 5) ?? [];
   strengths.forEach((item, i) => {
-    doc.text(`- ${safeFirstLine(doc, item, halfW - 16)}`, margin + 7, boxY + 18 + i * 7);
+    doc.text(`- ${safeFirstLine(doc, professionalRecommendation(item, result), halfW - 16)}`, margin + 7, boxY + 18 + i * 7);
   });
   if (strengths.length === 0) doc.text("No strengths recorded.", margin + 7, boxY + 19);
 
