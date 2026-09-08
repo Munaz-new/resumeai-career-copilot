@@ -82,10 +82,13 @@ function safeFirstLine(doc: jsPDF, text: string, width: number) {
   return doc.splitTextToSize(text, width)[0] ?? text;
 }
 
-function professionalRecommendation(text: string) {
+function professionalRecommendation(text: string, result?: AnalysisResult) {
   return text
     .replace(/possible keyword stuffing/gi, "review keyword distribution")
-    .replace(/keyword stuffing/gi, "keyword distribution");
+    .replace(/keyword stuffing/gi, "keyword distribution")
+    .replace(/missing\s+\d+\s+key\s+skills/gi, () =>
+      `missing ${result?.missingSkills.length ?? 0} key skills`,
+    );
 }
 
 export function exportAnalysisReport(result: AnalysisResult, fileName: string, jobTitle: string) {
@@ -131,7 +134,6 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     49,
   );
 
-  // Hero metrics
   const cardY = 64;
   const gap = 4;
   const cardW = (contentW - gap * 3) / 4;
@@ -159,7 +161,6 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     doc.text("/ 100", x + 31, cardY + 24.5);
   });
 
-  // Why this score
   sectionTitle(doc, "Why this score", margin, 111);
   const breakdown = result.scoreBreakdown ?? [];
   let y = 120;
@@ -200,13 +201,12 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     y += 9;
   }
 
-  // Top priorities
   y += 3;
   sectionTitle(doc, "Top 3 priorities", margin, y);
   y += 7;
   const priorityItems = (result.weaknesses?.length ? result.weaknesses : result.suggestions ?? [])
     .slice(0, 3)
-    .map(professionalRecommendation);
+    .map((item) => professionalRecommendation(item, result));
   const priorities = priorityItems.length > 0
     ? priorityItems
     : [
@@ -229,7 +229,6 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     doc.text(doc.splitTextToSize(item, w - 26).slice(0, 3), x + 22, y + 7);
   });
 
-  // Skill analysis
   y += 33;
   sectionTitle(doc, "Skill analysis", margin, y);
   y += 8;
@@ -300,13 +299,34 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...readinessColor);
   doc.text(readiness, margin + 8, 77);
-  progress(doc, margin + 80, 59, contentW - 94, readinessScore, readinessColor);
+
+  const readinessBarX = margin + 80;
+  const readinessBarY = 59;
+  const readinessBarW = contentW - 94;
+  progress(doc, readinessBarX, readinessBarY, readinessBarW, readinessScore, readinessColor);
+
+  // Exact score marker so the readiness position is unambiguous.
+  const markerX = readinessBarX + (readinessBarW * readinessScore) / 100;
+  doc.setDrawColor(...COLORS.ink);
+  doc.setLineWidth(0.7);
+  doc.line(markerX, readinessBarY - 2.5, markerX, readinessBarY + 5.5);
+  doc.setFillColor(...COLORS.white);
+  doc.circle(markerX, readinessBarY + 1.5, 1.6, "F");
+  doc.setDrawColor(...readinessColor);
+  doc.setLineWidth(0.6);
+  doc.circle(markerX, readinessBarY + 1.5, 1.6, "S");
+
   doc.setTextColor(...COLORS.muted);
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.text("Internship Ready", margin + 80, 69);
-  doc.text("Job Ready", pageW / 2 + 18, 69);
-  doc.text("Industry Ready", pageW - margin - 18, 69, { align: "right" });
+  doc.text("0", readinessBarX, 69);
+  doc.text("40", readinessBarX + readinessBarW * 0.4, 69, { align: "center" });
+  doc.text("60", readinessBarX + readinessBarW * 0.6, 69, { align: "center" });
+  doc.text("80", readinessBarX + readinessBarW * 0.8, 69, { align: "center" });
+  doc.text("100", readinessBarX + readinessBarW, 69, { align: "right" });
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...readinessColor);
+  doc.text(`${readinessScore}/100`, markerX, 76, { align: "center" });
 
   sectionTitle(doc, "Strengths & opportunities", margin, 98);
   const halfGap = 6;
@@ -337,15 +357,15 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setTextColor(...COLORS.ink);
   const weaknesses = result.weaknesses?.slice(0, 5) ?? [];
   weaknesses.forEach((item, i) => {
-    doc.text(`- ${safeFirstLine(doc, professionalRecommendation(item), halfW - 16)}`, rightBoxX + 7, boxY + 18 + i * 7);
+    doc.text(`- ${safeFirstLine(doc, professionalRecommendation(item, result), halfW - 16)}`, rightBoxX + 7, boxY + 18 + i * 7);
   });
   if (weaknesses.length === 0) doc.text("No major gaps recorded.", rightBoxX + 7, boxY + 19);
 
   sectionTitle(doc, "Smart suggestions", margin, 171);
-  const suggestions = result.suggestions?.slice(0, 7).map(professionalRecommendation) ?? [];
+  const suggestions = result.suggestions?.slice(0, 7).map((item) => professionalRecommendation(item, result)) ?? [];
   autoTable(doc, {
     startY: 178,
-    head: [["Priority", "Recommended action"]],
+    head: [["#", "Recommended action"]],
     body: suggestions.length > 0
       ? suggestions.map((s, i) => [String(i + 1).padStart(2, "0"), s])
       : [["01", "Review the missing skills and strengthen measurable achievements."]],
@@ -354,8 +374,8 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     styles: { fontSize: 8.5, cellPadding: 5, textColor: COLORS.ink, lineColor: COLORS.line },
     headStyles: { fillColor: COLORS.ink, textColor: COLORS.white, fontStyle: "bold" },
     columnStyles: {
-      0: { cellWidth: 18, fontStyle: "bold", textColor: COLORS.purple },
-      1: { cellWidth: contentW - 18 },
+      0: { cellWidth: 12, fontStyle: "bold", textColor: COLORS.purple, halign: "center" },
+      1: { cellWidth: contentW - 12 },
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
   });
@@ -382,7 +402,6 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     bodyStyles: { textColor: COLORS.ink, fontStyle: "bold" },
   });
 
-  // Single standardized footer on every page.
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
