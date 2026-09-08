@@ -2,6 +2,7 @@ import * as pdfjsLib from "pdfjs-dist";
 // Vite bundles the worker locally — no CDN dependency.
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import mammoth from "mammoth";
+import { runImageOcr } from "./imageOcr";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -35,39 +36,46 @@ export function detectFileKind(file: File): FileKind {
   return "unknown";
 }
 
-/**
- * Future OCR seam. Drop a Tesseract.js engine in `runOcr` later — no caller
- * changes needed. Today OCR is not implemented, so we return a clear,
- * low-confidence result that nudges the user to paste text or convert.
- */
-async function runOcr(_file: File): Promise<{ text: string; confidence: AtsConfidence } | null> {
-  // Intentionally not implemented yet. Returning null signals "no OCR engine".
-  return null;
-}
-
 export async function parseImageResume(file: File): Promise<ParseResult> {
-  const ocr = await runOcr(file);
-  if (ocr && ocr.text.replace(/\s+/g, " ").trim().length >= 50) {
+  try {
+    const ocr = await runImageOcr(file);
     const text = cleanResumeText(ocr.text);
+    const normalized = text.replace(/\s+/g, " ").trim();
+
+    if (normalized.length >= 50) {
+      return {
+        text,
+        success: true,
+        preview: normalized.slice(0, 500),
+        confidence: ocr.confidence,
+        fileKind: "image",
+        requiresConfirmation: true,
+      };
+    }
+
     return {
-      text,
-      success: true,
-      preview: text.replace(/\s+/g, " ").trim().slice(0, 500),
-      confidence: ocr.confidence,
+      text: "",
+      success: false,
+      error:
+        "We couldn't extract enough text from this image. Try a clearer image or upload a PDF/DOCX for better ATS accuracy.",
+      preview: normalized.slice(0, 500),
+      confidence: "low",
+      fileKind: "image",
+      requiresConfirmation: true,
+    };
+  } catch (err: any) {
+    if (import.meta.env.DEV) console.error("Image OCR error:", err);
+    return {
+      text: "",
+      success: false,
+      error:
+        "Image OCR couldn't start. Check your internet connection and try again, or upload a PDF/DOCX instead.",
+      preview: "",
+      confidence: "low",
       fileKind: "image",
       requiresConfirmation: true,
     };
   }
-  return {
-    text: "",
-    success: false,
-    error:
-      "Image text extraction isn't available yet. For accurate ATS analysis, upload a PDF or DOCX, or switch to the Paste Text tab and paste your resume.",
-    preview: "",
-    confidence: "low",
-    fileKind: "image",
-    requiresConfirmation: true,
-  };
 }
 
 /**

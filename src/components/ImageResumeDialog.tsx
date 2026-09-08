@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileWarning, ExternalLink, ArrowRight } from "lucide-react";
+import { FileWarning, ExternalLink, ArrowRight, ScanText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -50,10 +50,12 @@ export function ImageResumeDialog({
           </DialogTitle>
           <DialogDescription className="space-y-2 pt-1">
             <span className="block">
-              For best ATS accuracy, <strong>PDF or DOCX</strong> is recommended — ATS systems read
-              text more reliably than images.
+              For best ATS accuracy, <strong>PDF or DOCX</strong> is recommended because ATS systems
+              read text more reliably than images.
             </span>
-            <span className="block">Image resumes may reduce accuracy.</span>
+            <span className="block">
+              ResumeAI can now read this image directly with OCR, so you do not need to leave the app or upload the file again.
+            </span>
             {qualityWarning && (
               <span className="block rounded-lg bg-warning/10 text-warning px-3 py-2 text-sm">
                 {qualityWarning}
@@ -65,10 +67,20 @@ export function ImageResumeDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+          <div className="flex items-start gap-2">
+            <ScanText className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <p className="text-xs text-foreground/80 leading-relaxed">
+              OCR extracts the visible resume text and sends that text into the normal ATS analyzer.
+              Accuracy still depends on image quality and layout.
+            </p>
+          </div>
+        </div>
+
         {showConverters && (
           <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground">
-              Optional — convert your image with a trusted tool, then upload the PDF:
+              Optional fallback — convert your image with an external tool, then upload the PDF:
             </p>
             <div className="flex flex-col gap-1.5">
               {CONVERTERS.map((c) => (
@@ -98,7 +110,7 @@ export function ImageResumeDialog({
             Convert to PDF
           </Button>
           <Button onClick={onContinue}>
-            Continue Anyway
+            Analyze with OCR
             <ArrowRight className="w-4 h-4" />
           </Button>
         </DialogFooter>
