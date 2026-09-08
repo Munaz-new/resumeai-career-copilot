@@ -82,6 +82,12 @@ function safeFirstLine(doc: jsPDF, text: string, width: number) {
   return doc.splitTextToSize(text, width)[0] ?? text;
 }
 
+function professionalRecommendation(text: string) {
+  return text
+    .replace(/possible keyword stuffing/gi, "review keyword distribution")
+    .replace(/keyword stuffing/gi, "keyword distribution");
+}
+
 export function exportAnalysisReport(result: AnalysisResult, fileName: string, jobTitle: string) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
@@ -198,7 +204,9 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   y += 3;
   sectionTitle(doc, "Top 3 priorities", margin, y);
   y += 7;
-  const priorityItems = (result.weaknesses?.length ? result.weaknesses : result.suggestions ?? []).slice(0, 3);
+  const priorityItems = (result.weaknesses?.length ? result.weaknesses : result.suggestions ?? [])
+    .slice(0, 3)
+    .map(professionalRecommendation);
   const priorities = priorityItems.length > 0
     ? priorityItems
     : [
@@ -329,12 +337,12 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setTextColor(...COLORS.ink);
   const weaknesses = result.weaknesses?.slice(0, 5) ?? [];
   weaknesses.forEach((item, i) => {
-    doc.text(`- ${safeFirstLine(doc, item, halfW - 16)}`, rightBoxX + 7, boxY + 18 + i * 7);
+    doc.text(`- ${safeFirstLine(doc, professionalRecommendation(item), halfW - 16)}`, rightBoxX + 7, boxY + 18 + i * 7);
   });
   if (weaknesses.length === 0) doc.text("No major gaps recorded.", rightBoxX + 7, boxY + 19);
 
   sectionTitle(doc, "Smart suggestions", margin, 171);
-  const suggestions = result.suggestions?.slice(0, 7) ?? [];
+  const suggestions = result.suggestions?.slice(0, 7).map(professionalRecommendation) ?? [];
   autoTable(doc, {
     startY: 178,
     head: [["Priority", "Recommended action"]],
