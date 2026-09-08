@@ -88,6 +88,9 @@ function professionalRecommendation(text: string, result?: AnalysisResult) {
     .replace(/keyword stuffing/gi, "keyword distribution")
     .replace(/missing\s+\d+\s+key\s+skills/gi, () =>
       `missing ${result?.missingSkills.length ?? 0} key skills`,
+    )
+    .replace(/\b\d+\s+relevant skills detected\b/gi, () =>
+      `${result?.matchedSkills.length ?? 0} relevant skills detected`,
     );
 }
 
@@ -305,7 +308,6 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   const readinessBarW = contentW - 94;
   progress(doc, readinessBarX, readinessBarY, readinessBarW, readinessScore, readinessColor);
 
-  // Exact score marker so the readiness position is unambiguous.
   const markerX = readinessBarX + (readinessBarW * readinessScore) / 100;
   doc.setDrawColor(...COLORS.ink);
   doc.setLineWidth(0.7);
@@ -324,9 +326,6 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.text("60", readinessBarX + readinessBarW * 0.6, 69, { align: "center" });
   doc.text("80", readinessBarX + readinessBarW * 0.8, 69, { align: "center" });
   doc.text("100", readinessBarX + readinessBarW, 69, { align: "right" });
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...readinessColor);
-  doc.text(`${readinessScore}/100`, markerX, 76, { align: "center" });
 
   sectionTitle(doc, "Strengths & opportunities", margin, 98);
   const halfGap = 6;
@@ -374,8 +373,8 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     styles: { fontSize: 8.5, cellPadding: 5, textColor: COLORS.ink, lineColor: COLORS.line },
     headStyles: { fillColor: COLORS.ink, textColor: COLORS.white, fontStyle: "bold" },
     columnStyles: {
-      0: { cellWidth: 12, fontStyle: "bold", textColor: COLORS.purple, halign: "center" },
-      1: { cellWidth: contentW - 12 },
+      0: { cellWidth: 14, fontStyle: "bold", textColor: COLORS.purple, halign: "center" },
+      1: { cellWidth: contentW - 14 },
     },
     alternateRowStyles: { fillColor: [248, 250, 252] },
   });
