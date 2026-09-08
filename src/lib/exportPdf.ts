@@ -63,9 +63,9 @@ function sectionTitle(doc: jsPDF, title: string, x: number, y: number) {
 
 function professionalRecommendation(text: string, result?: AnalysisResult) {
   return text
-    .replace(/possible keyword stuffing/gi, "review keyword distribution")
-    .replace(/keyword stuffing/gi, "keyword distribution")
-    .replace(/missing\s+\d+\s+key\s+skills/gi, () => `missing ${result?.missingSkills.length ?? 0} key skills`)
+    .replace(/possible keyword stuffing/gi, "Review keyword distribution")
+    .replace(/keyword stuffing/gi, "Keyword distribution")
+    .replace(/missing\s+\d+\s+key\s+skills/gi, () => `Missing ${result?.missingSkills.length ?? 0} key skills`)
     .replace(/\b\d+\s+relevant skills detected\b/gi, () => `${result?.matchedSkills.length ?? 0} relevant skills detected`);
 }
 
