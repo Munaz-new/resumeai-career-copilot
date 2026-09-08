@@ -11,18 +11,30 @@ import { exportResumePdfSafe } from "./builderPdfFallback";
  * extra lines and can turn a one-page resume into a multi-page PDF.
  *
  * For PDF generation we therefore render the preview at its desktop/export
- * width, independent of the device viewport, and remove the preview's
- * screen-only minimum height. The resulting canvas is then fitted/paginated
- * against the PDF page size.
+ * width, independent of the device viewport, and remove the preview's screen-only minimum height. The resulting canvas is then fitted/paginated against the PDF page size.
  */
 export type ExportMode = "wysiwyg" | "fallback";
 
 const UNSUPPORTED_COLOR_RE = /(oklch|oklab|lab\(|lch\(|color\(|color-mix)/i;
 const PDF_RENDER_WIDTH = 760;
 
+function stripUnsupportedStyles(doc: Document) {
+  // html2canvas can fail while parsing the original stylesheet even when the
+  // affected color is not ultimately used by the resume. Remove only CSS
+  // declarations containing unsupported color functions from cloned <style>
+  // tags so visual templates can still be captured as WYSIWYG.
+  for (const styleEl of Array.from(doc.querySelectorAll("style"))) {
+    const css = styleEl.textContent || "";
+    if (!UNSUPPORTED_COLOR_RE.test(css)) continue;
+    const sanitized = css.replace(/([\w-]+)\s*:\s*[^;{}]*(?:oklch|oklab|lab\(|lch\(|color\(|color-mix)[^;{}]*;?/gi, "");
+    styleEl.textContent = sanitized;
+  }
+}
+
 function sanitizeClonedDoc(doc: Document, root: HTMLElement) {
+  stripUnsupportedStyles(doc);
+
   // Render the responsive preview at a stable desktop width for PDF output.
-  // This prevents mobile text wrapping from changing the PDF's layout.
   root.style.width = `${PDF_RENDER_WIDTH}px`;
   root.style.minWidth = `${PDF_RENDER_WIDTH}px`;
   root.style.maxWidth = `${PDF_RENDER_WIDTH}px`;
