@@ -10,19 +10,50 @@ import { exportResumePdfSafe } from "./builderPdfFallback";
  * phone. Capturing that responsive width directly makes text wrap into many
  * extra lines and can turn a one-page resume into a multi-page PDF.
  *
- * For PDF generation we therefore render the preview at its desktop/export
- * width, independent of the device viewport, and remove the preview's
- * screen-only minimum height. The resulting canvas is then fitted/paginated
- * against the PDF page size.
+ * For PDF generation we render the preview at a stable desktop width and
+ * inline the cloned preview's computed styles before html2canvas parses it.
+ * This avoids Tailwind v4 color functions such as oklch causing html2canvas
+ * to abort and silently switch to the old text-only fallback exporter.
  */
 export type ExportMode = "wysiwyg" | "fallback";
 
 const UNSUPPORTED_COLOR_RE = /(oklch|oklab|lab\(|lch\(|color\(|color-mix)/i;
 const PDF_RENDER_WIDTH = 760;
+const ONE_PAGE_TOLERANCE = 1.08;
+
+function safeCssValue(property: string, value: string): string | null {
+  if (!value || UNSUPPORTED_COLOR_RE.test(value)) {
+    if (property === "background-image" || property === "box-shadow" || property === "text-shadow") return "none";
+    if (property === "color" || property === "caret-color" || property === "fill" || property === "stroke") return "#111827";
+    if (property.includes("background-color")) return "#ffffff";
+    if (property.includes("border") && property.endsWith("-color")) return "#e5e7eb";
+    return value && UNSUPPORTED_COLOR_RE.test(value) ? null : value;
+  }
+  return value;
+}
+
+function inlineComputedStyles(doc: Document, root: HTMLElement) {
+  const nodes: HTMLElement[] = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+
+  for (const el of nodes) {
+    const cs = doc.defaultView?.getComputedStyle(el);
+    if (!cs) continue;
+
+    for (let i = 0; i < cs.length; i += 1) {
+      const property = cs[i];
+      const value = cs.getPropertyValue(property);
+      const safe = safeCssValue(property, value);
+      if (safe) el.style.setProperty(property, safe);
+    }
+
+    el.style.setProperty("box-sizing", "border-box");
+  }
+
+  for (const styleEl of Array.from(doc.querySelectorAll("style"))) styleEl.remove();
+  for (const link of Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'))) link.remove();
+}
 
 function sanitizeClonedDoc(doc: Document, root: HTMLElement) {
-  // Render the responsive preview at a stable desktop width for PDF output.
-  // This prevents mobile text wrapping from changing the PDF's layout.
   root.style.width = `${PDF_RENDER_WIDTH}px`;
   root.style.minWidth = `${PDF_RENDER_WIDTH}px`;
   root.style.maxWidth = `${PDF_RENDER_WIDTH}px`;
@@ -33,64 +64,19 @@ function sanitizeClonedDoc(doc: Document, root: HTMLElement) {
   root.style.borderRadius = "0";
   root.style.background = "#ffffff";
 
-  const style = doc.createElement("style");
-  style.textContent = `
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
-    }
-    [data-resume-preview] {
-      width: ${PDF_RENDER_WIDTH}px !important;
-      min-width: ${PDF_RENDER_WIDTH}px !important;
-      max-width: ${PDF_RENDER_WIDTH}px !important;
-      min-height: 0 !important;
-      height: auto !important;
-      margin: 0 !important;
-      box-sizing: border-box !important;
-    }
-  `;
-  doc.head.appendChild(style);
+  inlineComputedStyles(doc, root);
 
-  // Walk every element and replace any computed color value that uses a
-  // CSS function html2canvas cannot parse with a safe fallback.
-  const all = root.querySelectorAll<HTMLElement>("*");
-  const nodes: HTMLElement[] = [root, ...Array.from(all)];
-  const props: (keyof CSSStyleDeclaration)[] = [
-    "color",
-    "backgroundColor",
-    "borderTopColor",
-    "borderRightColor",
-    "borderBottomColor",
-    "borderLeftColor",
-    "outlineColor",
-    "fill",
-    "stroke",
-    "boxShadow",
-    "backgroundImage",
-  ];
-
-  for (const el of nodes) {
-    const cs = doc.defaultView?.getComputedStyle(el);
-    if (!cs) continue;
-    for (const p of props) {
-      const v = cs[p] as string | undefined;
-      if (!v || typeof v !== "string") continue;
-      if (UNSUPPORTED_COLOR_RE.test(v)) {
-        if (p === "color") el.style.color = "#111827";
-        else if (p === "backgroundColor") el.style.backgroundColor = "#ffffff";
-        else if (p === "boxShadow") el.style.boxShadow = "none";
-        else if (p === "backgroundImage") el.style.backgroundImage = "none";
-        else if (p === "fill") el.style.fill = "#111827";
-        else if (p === "stroke") el.style.stroke = "#111827";
-        else (el.style as any)[p] = "#e5e7eb";
-      }
-    }
-  }
+  root.style.setProperty("width", `${PDF_RENDER_WIDTH}px`, "important");
+  root.style.setProperty("min-width", `${PDF_RENDER_WIDTH}px`, "important");
+  root.style.setProperty("max-width", `${PDF_RENDER_WIDTH}px`, "important");
+  root.style.setProperty("min-height", "0", "important");
+  root.style.setProperty("height", "auto", "important");
+  root.style.setProperty("margin", "0", "important");
+  root.style.setProperty("box-shadow", "none", "important");
+  root.style.setProperty("border-radius", "0", "important");
 }
 
 export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft): Promise<ExportMode> {
-  // Let the latest paint settle so any in-flight template change is visible.
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
   try {
@@ -119,19 +105,20 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     const pageH = pdf.internal.pageSize.getHeight();
     const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
-    // Convert the captured canvas to PDF points while preserving its aspect
-    // ratio. Fit a genuinely one-page resume to one page; only paginate when
-    // the content is actually taller than the available page height.
     const naturalImgH = (canvas.height * pageW) / canvas.width;
-    const fitScale = naturalImgH <= pageH ? 1 : pageH / naturalImgH;
-    const imgW = pageW * fitScale;
-    const imgH = naturalImgH * fitScale;
-    const x = (pageW - imgW) / 2;
+    const isOnePage = naturalImgH <= pageH * ONE_PAGE_TOLERANCE;
 
-    if (naturalImgH <= pageH) {
+    if (isOnePage) {
+      // Small height overruns are usually caused by the template's deliberate
+      // screen-preview minimum height. Scale these slightly oversized
+      // captures down to one PDF page instead of creating a mostly blank page 2.
+      const fitScale = Math.min(1, pageH / naturalImgH);
+      const imgW = pageW * fitScale;
+      const imgH = naturalImgH * fitScale;
+      const x = (pageW - imgW) / 2;
       pdf.addImage(imgData, "JPEG", x, 0, imgW, imgH);
     } else {
-      // Preserve the original export width for real multi-page resumes.
+      // Preserve the original export width for genuinely multi-page resumes.
       const fullImgH = naturalImgH;
       let heightLeft = fullImgH;
       let position = 0;
@@ -151,6 +138,7 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
       canvasWidth: canvas.width,
       canvasHeight: canvas.height,
       pages: pdf.getNumberOfPages(),
+      onePageFit: isOnePage,
     });
     return "wysiwyg";
   } catch (err) {
