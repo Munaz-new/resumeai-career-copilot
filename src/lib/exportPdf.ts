@@ -2,215 +2,316 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { AnalysisResult } from "./analysisStore";
 
-export function exportAnalysisReport(
-  result: AnalysisResult,
-  fileName: string,
-  jobTitle: string
-) {
-  const doc = new jsPDF();
-  const now = new Date().toLocaleString();
+const COLORS = {
+  ink: [23, 32, 51] as [number, number, number],
+  muted: [100, 116, 139] as [number, number, number],
+  line: [226, 232, 240] as [number, number, number],
+  purple: [139, 92, 246] as [number, number, number],
+  purpleSoft: [245, 243, 255] as [number, number, number],
+  blue: [37, 99, 235] as [number, number, number],
+  green: [22, 163, 74] as [number, number, number],
+  amber: [217, 119, 6] as [number, number, number],
+  red: [220, 38, 38] as [number, number, number],
+  white: [255, 255, 255] as [number, number, number],
+};
+
+function clamp(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function scoreColor(score: number): [number, number, number] {
+  if (score >= 80) return COLORS.green;
+  if (score >= 60) return COLORS.blue;
+  if (score >= 40) return COLORS.amber;
+  return COLORS.red;
+}
+
+function roundedCard(doc: jsPDF, x: number, y: number, w: number, h: number, fill: [number, number, number], stroke = COLORS.line) {
+  doc.setFillColor(...fill);
+  doc.setDrawColor(...stroke);
+  doc.roundedRect(x, y, w, h, 4, 4, "FD");
+}
+
+function progress(doc: jsPDF, x: number, y: number, w: number, value: number, color: [number, number, number]) {
+  doc.setFillColor(226, 232, 240);
+  doc.roundedRect(x, y, w, 3, 1.5, 1.5, "F");
+  doc.setFillColor(...color);
+  doc.roundedRect(x, y, Math.max(2, (w * clamp(value)) / 100), 3, 1.5, 1.5, "F");
+}
+
+function sectionTitle(doc: jsPDF, title: string, x: number, y: number) {
+  doc.setTextColor(...COLORS.ink);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text(title.toUpperCase(), x, y);
+  doc.setDrawColor(...COLORS.purple);
+  doc.setLineWidth(0.8);
+  doc.line(x, y + 3, x + 34, y + 3);
+}
+
+export function exportAnalysisReport(result: AnalysisResult, fileName: string, jobTitle: string) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const contentW = pageW - margin * 2;
+  const now = new Date().toLocaleString();
 
-  // Header
-  doc.setFillColor(37, 99, 235);
-  doc.rect(0, 0, pageW, 35, "F");
-  doc.setTextColor(255, 255, 255);
+  // PAGE 1: executive report
+  doc.setFillColor(...COLORS.ink);
+  doc.rect(0, 0, pageW, 10, "F");
+
+  doc.setTextColor(...COLORS.ink);
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
-  doc.setFont("helvetica", "bold");
-  doc.text("ResumeAI Analysis Report", 14, 22);
+  doc.text("ResumeAI", margin, 25);
+  doc.setTextColor(...COLORS.purple);
   doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Generated: ${now}`, 14, 30);
+  doc.text("AI CAREER COPILOT  /  ANALYSIS REPORT", margin, 31);
 
-  // Resume info
-  let y = 45;
-  doc.setTextColor(30, 41, 59);
+  doc.setTextColor(...COLORS.muted);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(`Generated ${now}`, pageW - margin, 25, { align: "right" });
+  doc.text(fileName || "Pasted Resume", pageW - margin, 30, { align: "right" });
+
+  // Candidate / target role strip
+  roundedCard(doc, margin, 38, contentW, 19, COLORS.purpleSoft, [221, 214, 254]);
+  doc.setTextColor(...COLORS.muted);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.text("TARGET ROLE", margin + 7, 45);
+  doc.setTextColor(...COLORS.ink);
   doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("Resume Details", 14, y);
-  y += 8;
+  doc.text(jobTitle || "Role not specified", margin + 7, 51);
+  doc.setTextColor(...COLORS.muted);
+  doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text(`File: ${fileName || "Pasted Resume"}`, 14, y);
-  y += 6;
-  doc.text(`Target Role: ${jobTitle || "Not specified"}`, 14, y);
-  y += 12;
+  doc.text("ResumeAI evaluates match quality, ATS compatibility, and recruiter readiness.", margin + 80, 49);
 
-  // ATS Score
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  const scoreColor = result.atsScore >= 70 ? [34, 197, 94] : result.atsScore >= 50 ? [234, 179, 8] : [239, 68, 68];
-  doc.setTextColor(scoreColor[0], scoreColor[1], scoreColor[2]);
-  doc.text(`ATS Score: ${result.atsScore}%`, 14, y);
-  y += 10;
+  // Hero metrics
+  const cardY = 64;
+  const gap = 4;
+  const cardW = (contentW - gap * 3) / 4;
+  const metrics = [
+    ["ATS SCORE", result.atsScore],
+    ["KEYWORD MATCH", result.keywordMatch],
+    ["SKILLS MATCH", result.skillsMatch],
+    ["FORMATTING", result.formattingScore],
+  ] as const;
 
-  if (typeof result.recruiterScanScore === "number") {
-    doc.setFontSize(11);
-    doc.setTextColor(71, 85, 105);
-    doc.text(`Recruiter Score: ${result.recruiterScanScore}%`, 14, y);
-    y += 8;
-  }
-
-  // Score breakdown table
-  doc.setTextColor(30, 41, 59);
-  autoTable(doc, {
-    startY: y,
-    head: [["Metric", "Score"]],
-    body: [
-      ["Keyword Match", `${result.keywordMatch}%`],
-      ["Skills Match", `${result.skillsMatch}%`],
-      ["Parseability", `${result.parseability ?? "-"}%`],
-      ["Formatting Quality", `${result.formattingScore}%`],
-      ["Readability", `${result.readabilityScore}%`],
-      ["Section Completeness", `${result.sectionCompleteness}%`],
-      ["Achievement Quality", `${result.achievementQuality ?? "-"}%`],
-    ],
-    theme: "grid",
-    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
-    styles: { fontSize: 9, cellPadding: 4 },
-    margin: { left: 14, right: 14 },
+  metrics.forEach(([label, value], i) => {
+    const x = margin + i * (cardW + gap);
+    const fill = i === 0 ? COLORS.ink : COLORS.white;
+    roundedCard(doc, x, cardY, cardW, 35, fill, i === 0 ? COLORS.ink : COLORS.line);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(...(i === 0 ? [203, 213, 225] : COLORS.muted));
+    doc.text(label, x + 7, cardY + 9);
+    doc.setFontSize(23);
+    doc.setTextColor(...(i === 0 ? COLORS.white : scoreColor(value)));
+    doc.text(String(value), x + 7, cardY + 25);
+    doc.setFontSize(9);
+    doc.setTextColor(...(i === 0 ? [203, 213, 225] : COLORS.muted));
+    doc.setFont("helvetica", "normal");
+    doc.text("/ 100", x + 31, cardY + 24.5);
   });
 
-  y = (doc as any).lastAutoTable.finalY + 10;
+  // Why this score + progress bars
+  sectionTitle(doc, "Why this score", margin, 111);
+  const breakdown = result.scoreBreakdown ?? [];
+  let y = 120;
+  const breakdownItems = breakdown.length > 0 ? breakdown : [
+    { label: "Keyword Match", score: result.keywordMatch, delta: 0, positive: true },
+    { label: "Skills Match", score: result.skillsMatch, delta: 0, positive: true },
+    { label: "Parseability", score: result.parseability ?? 0, delta: 0, positive: true },
+    { label: "Formatting", score: result.formattingScore, delta: 0, positive: true },
+    { label: "Readability", score: result.readabilityScore, delta: 0, positive: true },
+    { label: "Section Completeness", score: result.sectionCompleteness, delta: 0, positive: true },
+  ];
 
-  // Score Breakdown ("Why this score?")
-  if (result.scoreBreakdown && result.scoreBreakdown.length > 0) {
-    if (y > 250) { doc.addPage(); y = 20; }
-    doc.setFontSize(11);
+  for (const item of breakdownItems.slice(0, 7)) {
+    const score = typeof (item as any).score === "number"
+      ? clamp((item as any).score)
+      : /keyword/i.test(item.label) ? result.keywordMatch
+      : /skill/i.test(item.label) ? result.skillsMatch
+      : /format/i.test(item.label) ? result.formattingScore
+      : /read/i.test(item.label) ? result.readabilityScore
+      : /section/i.test(item.label) ? result.sectionCompleteness
+      : /parse/i.test(item.label) ? (result.parseability ?? 0)
+      : /achievement/i.test(item.label) ? (result.achievementQuality ?? 0)
+      : 0;
+    doc.setTextColor(...COLORS.ink);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 41, 59);
-    doc.text("Why this score?", 14, y);
-    y += 6;
+    doc.setFontSize(8.5);
+    doc.text(item.label, margin, y);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    for (const it of result.scoreBreakdown) {
-      if (y > 280) { doc.addPage(); y = 20; }
-      if (it.positive) doc.setTextColor(34, 197, 94);
-      else doc.setTextColor(239, 68, 68);
-      const sign = it.delta > 0 ? `+${it.delta}` : it.delta < 0 ? `${it.delta}` : "•";
-      doc.text(`${sign}  ${it.label}`, 16, y);
-      y += 5;
-    }
-    doc.setTextColor(30, 41, 59);
-    y += 4;
+    doc.setTextColor(...COLORS.muted);
+    doc.text(`${score}%`, margin + contentW, y, { align: "right" });
+    progress(doc, margin, y + 3, contentW, score, scoreColor(score));
+    y += 11;
   }
 
-  // Matched Skills
-  if (result.matchedSkills.length > 0) {
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("Matched Skills", 14, y);
-    y += 6;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    const skillsText = result.matchedSkills.join(", ");
-    const lines = doc.splitTextToSize(skillsText, pageW - 28);
-    doc.text(lines, 14, y);
-    y += lines.length * 5 + 6;
-  }
+  // Two-column skills section
+  y += 4;
+  sectionTitle(doc, "Skill analysis", margin, y);
+  y += 9;
+  const colGap = 6;
+  const colW = (contentW - colGap) / 2;
+  const leftX = margin;
+  const rightX = margin + colW + colGap;
+  const skillBoxH = 43;
 
-  // Missing Skills
-  if (result.missingSkills.length > 0) {
-    if (y > 260) { doc.addPage(); y = 20; }
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(239, 68, 68);
-    doc.text("Missing Skills", 14, y);
-    y += 6;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(30, 41, 59);
-    const missingText = result.missingSkills.join(", ");
-    const mLines = doc.splitTextToSize(missingText, pageW - 28);
-    doc.text(mLines, 14, y);
-    y += mLines.length * 5 + 6;
-  }
-
-  // Suggestions
-  if (result.suggestions.length > 0) {
-    if (y > 240) { doc.addPage(); y = 20; }
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 41, 59);
-    doc.text("Smart Suggestions", 14, y);
-    y += 7;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    for (const s of result.suggestions) {
-      if (y > 275) { doc.addPage(); y = 20; }
-      const sLines = doc.splitTextToSize(`• ${s}`, pageW - 28);
-      doc.text(sLines, 14, y);
-      y += sLines.length * 5 + 2;
-    }
-    y += 4;
-  }
-
-  // Job Ready Meter
-  if (y > 260) { doc.addPage(); y = 20; }
-  doc.setFontSize(11);
+  roundedCard(doc, leftX, y, colW, skillBoxH, [240, 253, 244], [187, 247, 208]);
   doc.setFont("helvetica", "bold");
-  const readinessScore = result.jobReadiness ?? result.atsScore;
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.green);
+  doc.text(`MATCHED SKILLS  (${result.matchedSkills.length})`, leftX + 7, y + 9);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.ink);
+  const matched = result.matchedSkills.join("  •  ") || "None detected";
+  doc.text(doc.splitTextToSize(matched, colW - 14), leftX + 7, y + 18);
+
+  roundedCard(doc, rightX, y, colW, skillBoxH, [254, 242, 242], [254, 202, 202]);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.red);
+  doc.text(`MISSING SKILLS  (${result.missingSkills.length})`, rightX + 7, y + 9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...COLORS.ink);
+  const missing = result.missingSkills.join("  •  ") || "None detected";
+  doc.text(doc.splitTextToSize(missing, colW - 14), rightX + 7, y + 18);
+
+  // Footer page 1
+  doc.setFontSize(7);
+  doc.setTextColor(...COLORS.muted);
+  doc.text("ResumeAI  •  Analysis Report", margin, pageH - 9);
+  doc.text("1 / 2", pageW - margin, pageH - 9, { align: "right" });
+
+  // PAGE 2: actions and readiness
+  doc.addPage();
+  doc.setFillColor(...COLORS.ink);
+  doc.rect(0, 0, pageW, 10, "F");
+
+  doc.setTextColor(...COLORS.ink);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(19);
+  doc.text("Action Plan", margin, 25);
+  doc.setTextColor(...COLORS.muted);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.text("Turn the analysis into focused resume improvements.", margin, 31);
+
+  const readinessScore = clamp(result.jobReadiness ?? result.atsScore);
   const readiness = readinessScore >= 80 ? "Industry Ready" : readinessScore >= 60 ? "Job Ready" : readinessScore >= 40 ? "Internship Ready" : "Not Ready";
-  doc.text(`Job Readiness: ${readinessScore}% — ${readiness}`, 14, y);
-  y += 8;
+  const readinessColor = scoreColor(readinessScore);
 
-  // Strengths
-  if (result.strengths && result.strengths.length > 0) {
-    if (y > 260) { doc.addPage(); y = 20; }
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(34, 197, 94);
-    doc.text("Strengths", 14, y); y += 5;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(30, 41, 59);
-    for (const s of result.strengths) {
-      if (y > 280) { doc.addPage(); y = 20; }
-      doc.text(`+ ${s}`, 16, y); y += 5;
-    }
-    y += 3;
-  }
+  // Readiness hero
+  roundedCard(doc, margin, 40, contentW, 43, COLORS.purpleSoft, [221, 214, 254]);
+  doc.setTextColor(...COLORS.purple);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.text("JOB READINESS", margin + 8, 49);
+  doc.setTextColor(...COLORS.ink);
+  doc.setFontSize(28);
+  doc.text(String(readinessScore), margin + 8, 69);
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.muted);
+  doc.setFont("helvetica", "normal");
+  doc.text("/ 100", margin + 31, 68.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...readinessColor);
+  doc.text(readiness, margin + 8, 77);
+  progress(doc, margin + 80, 59, contentW - 94, readinessScore, readinessColor);
+  doc.setTextColor(...COLORS.muted);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text("Internship Ready", margin + 80, 69);
+  doc.text("Job Ready", pageW / 2 + 18, 69);
+  doc.text("Industry Ready", pageW - margin - 18, 69, { align: "right" });
 
-  // Weaknesses
-  if (result.weaknesses && result.weaknesses.length > 0) {
-    if (y > 260) { doc.addPage(); y = 20; }
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(234, 179, 8);
-    doc.text("Areas to improve", 14, y); y += 5;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(30, 41, 59);
-    for (const w of result.weaknesses) {
-      if (y > 280) { doc.addPage(); y = 20; }
-      doc.text(`- ${w}`, 16, y); y += 5;
-    }
-    y += 3;
-  }
+  // Strengths / weaknesses
+  sectionTitle(doc, "Strengths & opportunities", margin, 98);
+  const halfGap = 6;
+  const halfW = (contentW - halfGap) / 2;
+  const boxY = 106;
+  const boxH = 51;
+  roundedCard(doc, margin, boxY, halfW, boxH, [240, 253, 244], [187, 247, 208]);
+  roundedCard(doc, margin + halfW + halfGap, boxY, halfW, boxH, [255, 251, 235], [253, 230, 138]);
 
-  // Employment gaps
-  if (result.employmentGaps && result.employmentGaps.length > 0) {
-    if (y > 260) { doc.addPage(); y = 20; }
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 41, 59);
-    doc.text("Employment Gaps Detected", 14, y); y += 6;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    for (const g of result.employmentGaps) {
-      if (y > 280) { doc.addPage(); y = 20; }
-      doc.text(`• ${g.from} → ${g.to} (~${g.months} months)`, 16, y); y += 5;
-    }
-  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.green);
+  doc.text("WHAT'S WORKING", margin + 7, boxY + 9);
+  doc.setTextColor(...COLORS.ink);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  const strengths = result.strengths?.slice(0, 5) ?? [];
+  strengths.forEach((item, i) => {
+    doc.text(`+ ${doc.splitTextToSize(item, halfW - 16)[0]}`, margin + 7, boxY + 18 + i * 7);
+  });
+  if (strengths.length === 0) doc.text("No strengths recorded.", margin + 7, boxY + 19);
 
-  // Footer
+  const rightBoxX = margin + halfW + halfGap;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...COLORS.amber);
+  doc.text("FOCUS NEXT", rightBoxX + 7, boxY + 9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...COLORS.ink);
+  const weaknesses = result.weaknesses?.slice(0, 5) ?? [];
+  weaknesses.forEach((item, i) => {
+    doc.text(`→ ${doc.splitTextToSize(item, halfW - 16)[0]}`, rightBoxX + 7, boxY + 18 + i * 7);
+  });
+  if (weaknesses.length === 0) doc.text("No major gaps recorded.", rightBoxX + 7, boxY + 19);
+
+  // Suggestions table
+  sectionTitle(doc, "Smart suggestions", margin, 171);
+  const suggestions = result.suggestions?.slice(0, 7) ?? [];
+  autoTable(doc, {
+    startY: 178,
+    head: [["Priority", "Recommended action"]],
+    body: suggestions.length > 0
+      ? suggestions.map((s, i) => [String(i + 1).padStart(2, "0"), s])
+      : [["01", "Review the missing skills and strengthen measurable achievements."]],
+    theme: "plain",
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 8.5, cellPadding: 5, textColor: COLORS.ink, lineColor: COLORS.line },
+    headStyles: { fillColor: COLORS.ink, textColor: COLORS.white, fontStyle: "bold" },
+    columnStyles: { 0: { cellWidth: 18, fontStyle: "bold", textColor: COLORS.purple }, 1: { cellWidth: contentW - 18 } },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+  });
+
+  y = ((doc as any).lastAutoTable?.finalY ?? 230) + 12;
+
+  // Compact final score table
+  if (y > 250) { doc.addPage(); y = 22; }
+  sectionTitle(doc, "Final score snapshot", margin, y);
+  y += 7;
+  autoTable(doc, {
+    startY: y,
+    head: [["ATS", "Keywords", "Skills", "Formatting", "Readability", "Sections"]],
+    body: [[
+      `${result.atsScore}%`, `${result.keywordMatch}%`, `${result.skillsMatch}%`,
+      `${result.formattingScore}%`, `${result.readabilityScore}%`, `${result.sectionCompleteness}%`,
+    ]],
+    theme: "grid",
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 9, halign: "center", cellPadding: 5 },
+    headStyles: { fillColor: COLORS.purple, textColor: COLORS.white, fontStyle: "bold" },
+    bodyStyles: { textColor: COLORS.ink, fontStyle: "bold" },
+  });
+
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184);
-    doc.text("ResumeAI — AI-Powered Resume Analysis", 14, doc.internal.pageSize.getHeight() - 10);
-    doc.text(`Page ${i} of ${pageCount}`, pageW - 30, doc.internal.pageSize.getHeight() - 10);
+    doc.setDrawColor(...COLORS.line);
+    doc.setLineWidth(0.3);
+    doc.line(margin, pageH - 13, pageW - margin, pageH - 13);
+    doc.setFontSize(7);
+    doc.setTextColor(...COLORS.muted);
+    doc.text("ResumeAI  •  AI-Powered Resume Analysis", margin, pageH - 7);
+    doc.text(`${i} / ${pageCount}`, pageW - margin, pageH - 7, { align: "right" });
   }
 
   doc.save(`ResumeAI-Report-${new Date().toISOString().slice(0, 10)}.pdf`);
