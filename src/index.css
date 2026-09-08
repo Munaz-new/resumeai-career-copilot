@@ -67,20 +67,11 @@
     --popover: 217 33% 17%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 215 20% 65%;
-
     --muted: 217 33% 17%;
     --muted-foreground: 215 20% 65%;
 
     --accent: 220 40% 13%;
     --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
 
     --border: 217 25% 22%;
     --input: 217 25% 22%;
@@ -193,5 +184,109 @@
   .hover-lift:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-card-hover);
+  }
+}
+
+/* ResumeAI Analysis Report V2
+   Visual direction: analytical dashboard structure + clean portfolio typography.
+   This layer is intentionally presentation-only. It does not change analyzer scores. */
+@layer components {
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 {
+    --report-purple: #8b5cf6;
+    --report-purple-soft: rgba(139, 92, 246, 0.08);
+    --report-ink: #172033;
+    position: relative;
+  }
+
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6::before {
+    content: "ANALYSIS REPORT";
+    display: block;
+    width: fit-content;
+    margin: 0 0 -0.5rem 0.25rem;
+    color: var(--report-purple);
+    font-family: var(--font-heading);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+  }
+
+  /* Top controls become a compact report header. */
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > .flex.items-center.justify-between {
+    padding: 0.75rem 0.25rem 0.25rem;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  /* Debug panel stays useful, but visually secondary. */
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > .animate-fade-in:nth-child(2) {
+    opacity: 0.92;
+  }
+
+  .max-w-6xl.mx-auto.px-8.px-8.py-8 > .space-y-6 > .animate-fade-in:nth-child(2) {
+    margin-top: -0.5rem;
+  }
+
+  /* Hero score row. */
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > [class*="md:grid-cols-4"] {
+    position: relative;
+    gap: 1rem;
+  }
+
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > [class*="md:grid-cols-4"] > .dashboard-card {
+    min-height: 9.5rem;
+    border-radius: 1.35rem;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  }
+
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > [class*="md:grid-cols-4"] > .dashboard-card:first-child {
+    background: linear-gradient(145deg, #ffffff 0%, var(--report-purple-soft) 100%);
+    border-color: rgba(139, 92, 246, 0.18);
+    min-height: 11rem;
+  }
+
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > [class*="md:grid-cols-4"] > .dashboard-card:not(:first-child) {
+    justify-content: flex-start;
+    align-items: flex-start;
+    padding: 1.35rem;
+  }
+
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > [class*="md:grid-cols-4"] .stat-value {
+    font-size: 2.25rem;
+    letter-spacing: -0.045em;
+  }
+
+  /* Make the score explanation feel like the report's primary analytical block. */
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > .dashboard-card {
+    border-radius: 1.25rem;
+  }
+
+  /* Score breakdown gets a two-tone analytical treatment. */
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > .dashboard-card:has([class*="Formatting Quality"]) {
+    background: linear-gradient(135deg, #ffffff 0%, rgba(139, 92, 246, 0.035) 100%);
+  }
+
+  /* Skill groups become visual pills rather than dense text blocks. */
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > [class*="md:grid-cols-2"] .dashboard-card {
+    border-radius: 1.25rem;
+  }
+
+  /* Suggestions become a clean action board. */
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > .dashboard-card .bg-muted\/50 {
+    border: 1px solid hsl(var(--border));
+    background: linear-gradient(135deg, hsl(var(--muted)) 0%, rgba(139, 92, 246, 0.035) 100%);
+  }
+
+  /* Readiness block gets stronger visual hierarchy. */
+  .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > .dashboard-card:last-child {
+    border-color: rgba(139, 92, 246, 0.16);
+  }
+
+  @media (max-width: 768px) {
+    .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 {
+      gap: 1rem;
+    }
+
+    .max-w-6xl.mx-auto.px-8.py-8 > .space-y-6 > [class*="md:grid-cols-4"] > .dashboard-card {
+      min-height: auto;
+    }
   }
 }
