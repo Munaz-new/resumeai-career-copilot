@@ -6,20 +6,20 @@ import { exportResumePdfSafe } from "./builderPdfFallback";
 /**
  * WYSIWYG PDF export with automatic fallback.
  *
- * The live preview is responsive, so its width can become very narrow on a
- * phone. Capturing that responsive width directly makes text wrap into many
- * extra lines and can turn a one-page resume into a multi-page PDF.
+ * The resume preview is responsive. Exporting it at a forced 760px width can
+ * change column widths, line wrapping, and therefore the vertical position of
+ * text compared with what the user sees on screen. We capture at the preview's
+ * actual rendered width instead, then scale that image onto the PDF page.
  *
- * For PDF generation we render the preview at a stable desktop width and
- * inline the cloned preview's computed styles before html2canvas parses it.
- * This avoids Tailwind v4 color functions such as oklch causing html2canvas
- * to abort and silently switch to the old text-only fallback exporter.
+ * We also inline computed styles in the clone so Tailwind v4 color functions
+ * such as oklch do not cause html2canvas to abort and fall back to the old
+ * text-only exporter.
  */
 export type ExportMode = "wysiwyg" | "fallback";
 
 const UNSUPPORTED_COLOR_RE = /(oklch|oklab|lab\(|lch\(|color\(|color-mix)/i;
-const PDF_RENDER_WIDTH = 760;
 const ONE_PAGE_TOLERANCE = 1.08;
+const CAPTURE_SCALE = 3;
 
 function safeCssValue(property: string, value: string): string | null {
   if (!value || UNSUPPORTED_COLOR_RE.test(value)) {
@@ -53,10 +53,10 @@ function inlineComputedStyles(doc: Document, root: HTMLElement) {
   for (const link of Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'))) link.remove();
 }
 
-function sanitizeClonedDoc(doc: Document, root: HTMLElement) {
-  root.style.width = `${PDF_RENDER_WIDTH}px`;
-  root.style.minWidth = `${PDF_RENDER_WIDTH}px`;
-  root.style.maxWidth = `${PDF_RENDER_WIDTH}px`;
+function sanitizeClonedDoc(doc: Document, root: HTMLElement, renderWidth: number) {
+  root.style.width = `${renderWidth}px`;
+  root.style.minWidth = `${renderWidth}px`;
+  root.style.maxWidth = `${renderWidth}px`;
   root.style.minHeight = "0";
   root.style.height = "auto";
   root.style.margin = "0";
@@ -66,9 +66,9 @@ function sanitizeClonedDoc(doc: Document, root: HTMLElement) {
 
   inlineComputedStyles(doc, root);
 
-  root.style.setProperty("width", `${PDF_RENDER_WIDTH}px`, "important");
-  root.style.setProperty("min-width", `${PDF_RENDER_WIDTH}px`, "important");
-  root.style.setProperty("max-width", `${PDF_RENDER_WIDTH}px`, "important");
+  root.style.setProperty("width", `${renderWidth}px`, "important");
+  root.style.setProperty("min-width", `${renderWidth}px`, "important");
+  root.style.setProperty("max-width", `${renderWidth}px`, "important");
   root.style.setProperty("min-height", "0", "important");
   root.style.setProperty("height", "auto", "important");
   root.style.setProperty("margin", "0", "important");
@@ -80,24 +80,32 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
   try {
+    // Capture the exact CSS width the user is currently looking at. This is
+    // the key difference from the previous fixed-width exporter: responsive
+    // columns and text wrapping now match the live preview.
+    const renderWidth = Math.max(1, Math.round(element.getBoundingClientRect().width));
+    const renderHeight = Math.max(1, Math.round(element.scrollHeight));
+
     console.info("[PDF] starting WYSIWYG export", {
       template: draft.template,
       viewportWidth: element.clientWidth,
-      exportWidth: PDF_RENDER_WIDTH,
-      height: element.scrollHeight,
+      exportWidth: renderWidth,
+      height: renderHeight,
     });
 
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: CAPTURE_SCALE,
       backgroundColor: "#ffffff",
       useCORS: true,
       logging: false,
-      width: PDF_RENDER_WIDTH,
-      windowWidth: PDF_RENDER_WIDTH,
+      width: renderWidth,
+      height: renderHeight,
+      windowWidth: renderWidth,
+      windowHeight: renderHeight,
       imageTimeout: 15000,
       foreignObjectRendering: false,
       removeContainer: true,
-      onclone: (doc, node) => sanitizeClonedDoc(doc, node as HTMLElement),
+      onclone: (doc, node) => sanitizeClonedDoc(doc, node as HTMLElement, renderWidth),
     });
 
     const pdf = new jsPDF({ unit: "pt", format: "letter", compress: true });
@@ -109,16 +117,16 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     const isOnePage = naturalImgH <= pageH * ONE_PAGE_TOLERANCE;
 
     if (isOnePage) {
-      // Small height overruns are usually caused by the template's deliberate
-      // screen-preview minimum height. Scale these slightly oversized
-      // captures down to one PDF page instead of creating a mostly blank page 2.
+      // Keep the entire preview on one page when it is only slightly taller
+      // than the PDF page. The uniform scale preserves the preview exactly.
       const fitScale = Math.min(1, pageH / naturalImgH);
       const imgW = pageW * fitScale;
       const imgH = naturalImgH * fitScale;
       const x = (pageW - imgW) / 2;
       pdf.addImage(imgData, "JPEG", x, 0, imgW, imgH);
     } else {
-      // Preserve the original export width for genuinely multi-page resumes.
+      // Genuine multi-page resumes are split vertically without changing the
+      // captured layout, so no text is reflowed during PDF pagination.
       const fullImgH = naturalImgH;
       let heightLeft = fullImgH;
       let position = 0;
