@@ -19,6 +19,7 @@ export type ExportMode = "wysiwyg" | "fallback";
 
 const UNSUPPORTED_COLOR_RE = /(oklch|oklab|lab\(|lch\(|color\(|color-mix)/i;
 const PDF_RENDER_WIDTH = 760;
+const ONE_PAGE_TOLERANCE = 1.08;
 
 function safeCssValue(property: string, value: string): string | null {
   if (!value || UNSUPPORTED_COLOR_RE.test(value)) {
@@ -38,8 +39,6 @@ function inlineComputedStyles(doc: Document, root: HTMLElement) {
     const cs = doc.defaultView?.getComputedStyle(el);
     if (!cs) continue;
 
-    // Copy the complete computed style into inline declarations. This makes
-    // the cloned resume independent of the original Tailwind stylesheet.
     for (let i = 0; i < cs.length; i += 1) {
       const property = cs[i];
       const value = cs.getPropertyValue(property);
@@ -47,18 +46,14 @@ function inlineComputedStyles(doc: Document, root: HTMLElement) {
       if (safe) el.style.setProperty(property, safe);
     }
 
-    // Ensure export-only dimensions override responsive preview rules.
     el.style.setProperty("box-sizing", "border-box");
   }
 
-  // Once every element has its computed styles inline, remove author styles
-  // from the clone so html2canvas never has to parse unsupported CSS tokens.
   for (const styleEl of Array.from(doc.querySelectorAll("style"))) styleEl.remove();
   for (const link of Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'))) link.remove();
 }
 
 function sanitizeClonedDoc(doc: Document, root: HTMLElement) {
-  // Capture at the same stable width used by the original desktop preview.
   root.style.width = `${PDF_RENDER_WIDTH}px`;
   root.style.minWidth = `${PDF_RENDER_WIDTH}px`;
   root.style.maxWidth = `${PDF_RENDER_WIDTH}px`;
@@ -71,8 +66,6 @@ function sanitizeClonedDoc(doc: Document, root: HTMLElement) {
 
   inlineComputedStyles(doc, root);
 
-  // inlineComputedStyles copied the responsive dimensions first, so apply the
-  // export dimensions again after author styles have been removed.
   root.style.setProperty("width", `${PDF_RENDER_WIDTH}px`, "important");
   root.style.setProperty("min-width", `${PDF_RENDER_WIDTH}px`, "important");
   root.style.setProperty("max-width", `${PDF_RENDER_WIDTH}px`, "important");
@@ -113,14 +106,19 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     const imgData = canvas.toDataURL("image/jpeg", 0.95);
 
     const naturalImgH = (canvas.height * pageW) / canvas.width;
-    const fitScale = naturalImgH <= pageH ? 1 : pageH / naturalImgH;
-    const imgW = pageW * fitScale;
-    const imgH = naturalImgH * fitScale;
-    const x = (pageW - imgW) / 2;
+    const isOnePage = naturalImgH <= pageH * ONE_PAGE_TOLERANCE;
 
-    if (naturalImgH <= pageH) {
+    if (isOnePage) {
+      // Small height overruns are usually caused by the template's deliberate
+      // screen-preview minimum height. Scale these slightly oversized
+      // captures down to one PDF page instead of creating a mostly blank page 2.
+      const fitScale = Math.min(1, pageH / naturalImgH);
+      const imgW = pageW * fitScale;
+      const imgH = naturalImgH * fitScale;
+      const x = (pageW - imgW) / 2;
       pdf.addImage(imgData, "JPEG", x, 0, imgW, imgH);
     } else {
+      // Preserve the original export width for genuinely multi-page resumes.
       const fullImgH = naturalImgH;
       let heightLeft = fullImgH;
       let position = 0;
@@ -140,6 +138,7 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
       canvasWidth: canvas.width,
       canvasHeight: canvas.height,
       pages: pdf.getNumberOfPages(),
+      onePageFit: isOnePage,
     });
     return "wysiwyg";
   } catch (err) {
