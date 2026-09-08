@@ -4,33 +4,117 @@ import { sectionTitle } from "@/lib/resumeDraft";
 export function ModernSidebarPreview({ draft, innerRef }: { draft: ResumeDraft; innerRef?: React.Ref<HTMLDivElement> }) {
   const sorted = [...draft.sections].filter((s) => s.enabled).sort((a, b) => a.order - b.order);
   const c = draft.contact;
-  const main = sorted.filter((s) => !["skills", "achievements", "activities"].includes(s.type));
-  const side = sorted.filter((s) => ["skills", "achievements", "activities"].includes(s.type));
-  const initials = (c.name || "Your Name").split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
+  const summary = sorted.find((s) => s.type === "summary");
+  const education = sorted.find((s) => s.type === "education");
   const skills = sorted.find((s) => s.type === "skills");
-  const achievements = side.filter((s) => s.type === "achievements");
-  const activities = side.filter((s) => s.type === "activities");
-  return <div ref={innerRef} data-resume-preview className="w-full max-w-[760px] min-h-[1000px] mx-auto bg-white text-zinc-900 shadow-md border border-zinc-200 box-border font-sans overflow-hidden" style={{WebkitPrintColorAdjust:"exact",printColorAdjust:"exact"} as React.CSSProperties}>
-    <header className="bg-[#405f61] text-white grid grid-cols-[180px_minmax(0,1fr)] min-h-[132px]">
-      <div className="bg-[#d9e9e6] flex items-center justify-center p-6"><div className="w-[78px] h-[78px] rounded-full bg-[#3f4f50] text-white flex items-center justify-center text-[27px] font-light tracking-wide border-[6px] border-white/30">{initials || "CV"}</div></div>
-      <div className="flex flex-col justify-center px-7 py-5"><p className="text-[9px] uppercase tracking-[0.22em] text-white/75 font-semibold mb-1">{draft.targetRole || "Professional Profile"}</p><h1 className="text-[27px] leading-none font-extrabold tracking-tight break-words">{c.name || "Name Surname"}</h1><p className="mt-2 text-[9px] uppercase tracking-[0.22em] text-white/80">{draft.targetRole || "Professional Title"}</p></div>
-    </header>
-    <div className="grid grid-cols-[180px_minmax(0,1fr)] min-h-[868px]">
-      <aside className="bg-[#d9e9e6] px-5 py-6 text-[#405052]">
-        <SidebarHeading>Contact</SidebarHeading><div className="space-y-2 mb-7 text-[9px] leading-[1.45] break-words">{c.phone&&<p>{c.phone}</p>}{c.email&&<p>{c.email}</p>}{c.location&&<p>{c.location}</p>}{c.links.map(l=><p key={l.label}>{l.label}: {l.url}</p>)}{!c.phone&&!c.email&&!c.location&&!c.links.length&&<p className="text-[#718181] italic">Add contact details</p>}</div>
-        <SidebarHeading>Skills</SidebarHeading><SidebarSkills section={skills}/>
-        <SidebarHeading>Languages</SidebarHeading><p className="text-[9px] leading-5 text-[#526364] mb-6">Add languages in Activities or your resume content.</p>
-        {achievements.length>0&&<><SidebarHeading>Achievements</SidebarHeading>{achievements.map(s=><SidebarBullets key={s.id} section={s}/>)}</>}
-        {activities.length>0&&<><SidebarHeading>Interests</SidebarHeading>{activities.map(s=><SidebarBullets key={s.id} section={s}/>)}</>}
-      </aside>
-      <main className="px-7 py-7 min-w-0">{main.length?main.map(s=><ModernSection key={s.id} section={s}/>):<p className="text-xs text-zinc-400 italic">Add resume sections to build your CV.</p>}</main>
+  const experience = sorted.find((s) => s.type === "experience");
+  const sideExtras = sorted.filter((s) => s.type === "achievements" || s.type === "activities");
+  const mainSections = sorted.filter((s) => !["summary", "education", "skills", "achievements", "activities", "experience"].includes(s.type));
+
+  return (
+    <div
+      ref={innerRef}
+      data-resume-preview
+      className="w-full max-w-[760px] min-h-[1000px] mx-auto bg-white text-zinc-800 shadow-md border border-zinc-200 box-border font-sans overflow-hidden"
+      style={{ WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" } as React.CSSProperties}
+    >
+      <header className="grid grid-cols-[30%_70%] min-h-[145px]">
+        <div className="bg-[#b9b9b9] px-6 py-5 flex flex-col justify-center text-[#303030]">
+          <SectionLabel>Contact</SectionLabel>
+          <div className="space-y-2 text-[8.5px] leading-[1.35] break-words">
+            {c.phone && <p>{c.phone}</p>}
+            {c.email && <p>{c.email}</p>}
+            {c.location && <p>{c.location}</p>}
+            {c.links.map((l) => <p key={l.label}>{l.label}: {l.url}</p>)}
+            {!c.phone && !c.email && !c.location && !c.links.length && <p className="text-[#666] italic">Add contact details</p>}
+          </div>
+        </div>
+        <div className="bg-white px-9 py-7 flex flex-col justify-center">
+          <h1 className="text-[30px] leading-[0.92] tracking-[0.11em] font-light uppercase text-[#343434] break-words">
+            {c.name || "Your Name"}
+          </h1>
+          <p className="mt-2 text-[8px] uppercase tracking-[0.26em] text-[#555]">
+            {draft.targetRole || "Professional Title"}
+          </p>
+        </div>
+      </header>
+
+      {summary && <div className="bg-[#c9a776] px-6 py-4.5 text-[#44372a]">
+        <SectionLabel>Summary</SectionLabel>
+        <SummaryBody section={summary} />
+      </div>}
+
+      <div className="grid grid-cols-[30%_70%] min-h-[850px]">
+        <aside className="bg-[#b9b9b9] px-6 py-5 text-[#303030]">
+          {education && <SidebarSection title="Education"><EducationBody section={education} /></SidebarSection>}
+          {skills && <SidebarSection title="Skills"><SkillsBody section={skills} /></SidebarSection>}
+          {sideExtras.length > 0 && <SidebarSection title="Soft Skills"><SoftSkillsBody sections={sideExtras} /></SidebarSection>}
+        </aside>
+
+        <main className="bg-white px-7 py-5 min-w-0">
+          {experience && <MainSection title="Work History"><ExperienceBody section={experience} /></MainSection>}
+          {mainSections.map((section) => <MainSection key={section.id} title={sectionTitle(section.type)}><GenericBody section={section} /></MainSection>)}
+          {!experience && !mainSections.length && <p className="text-[10px] text-zinc-400 italic">Add resume sections to build your CV.</p>}
+        </main>
+      </div>
     </div>
-  </div>;
+  );
 }
-function SidebarHeading({children}:{children:React.ReactNode}){return <h2 className="text-[9px] uppercase tracking-[0.18em] font-bold text-[#405052] pb-1.5 mb-3 border-b border-[#91aaa7]">{children}</h2>;}
-function SidebarSkills({section}:{section?:ResumeSection}){if(!section)return <p className="text-[9px] text-[#718181] italic mb-7">Add skills</p>;const d=section.data as SectionData["skills"];return <div className="space-y-2 mb-7">{d.items.length?d.items.map(skill=><div key={skill}><div className="flex justify-between gap-2 text-[8.5px] mb-0.5"><span>{skill}</span><span className="tracking-[0.12em] text-[#6b8582]">••••</span></div><div className="h-1 bg-[#b8cfcc] rounded-full overflow-hidden"><div className="h-full w-[78%] bg-[#557775] rounded-full"/></div></div>):<p className="text-[9px] text-[#718181] italic">Add skills</p>}</div>;}
-function SidebarBullets({section}:{section:ResumeSection}){const d=section.data as {items:string[]};return <ul className="space-y-1.5 mb-6 text-[9px] leading-[1.45]">{d.items.filter(Boolean).map((item,i)=><li key={i}>• {item}</li>)}</ul>;}
-function ModernSection({section}:{section:ResumeSection}){return <section className="mb-6 break-inside-avoid"><h2 className="flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] font-bold text-[#405052] pb-2 mb-3 border-b border-[#9aa9a8]"><span className="w-5 h-5 rounded-full bg-[#d9e9e6] text-[#405f61] flex items-center justify-center text-[8px]">{sectionIcon(section.type)}</span>{sectionTitle(section.type)}</h2><ModernBody section={section}/></section>;}
-function sectionIcon(type:ResumeSection["type"]):string{return({summary:"•",experience:"↗",education:"□",projects:"◆",certifications:"✓",skills:"✦",achievements:"★",activities:"○"})[type];}
-function ModernBody({section}:{section:ResumeSection}){const text="text-[10.5px] leading-[1.48] text-zinc-700";switch(section.type){case"summary":{const d=section.data as SectionData["summary"];return <p className={text}>{d.text||<Placeholder text="Your professional summary..."/>}</p>;}case"experience":{const d=section.data as SectionData["experience"];return d.items.length?<div className="space-y-4">{d.items.map((e,i)=><div key={i}><div className="flex justify-between gap-3 items-baseline"><p className="font-bold text-[10.5px] text-zinc-900">{e.role} <span className="font-normal text-zinc-600">| {e.company}</span></p><p className="shrink-0 text-[9px] text-zinc-500">{e.start} – {e.end}</p></div><ul className="mt-1 space-y-0.5">{e.bullets.filter(Boolean).map((b,j)=><li key={j} className={text}>• {b}</li>)}</ul></div>)}</div>:<Placeholder text="Add experience"/>;}case"education":{const d=section.data as SectionData["education"];return d.items.length?<div className="space-y-3">{d.items.map((e,i)=><div key={i} className="flex justify-between gap-3"><div><p className="font-bold text-[10.5px] text-zinc-900">{e.degree}</p><p className={text}>{e.school}{e.details?` — ${e.details}`:""}</p></div><p className="shrink-0 text-[9px] text-zinc-500">{e.start} – {e.end}</p></div>)}</div>:<Placeholder text="Add education"/>;}case"projects":{const d=section.data as SectionData["projects"];return d.items.length?<div className="space-y-3">{d.items.map((p,i)=><div key={i}><div className="flex justify-between gap-3"><p className="font-bold text-[10.5px] text-zinc-900">{p.name}</p><p className="text-[9px] text-zinc-500">{p.tech}</p></div>{p.link&&<p className="text-[8.5px] text-zinc-500 break-all">{p.link}</p>}<ul className="mt-1">{p.bullets.filter(Boolean).map((b,j)=><li key={j} className={text}>• {b}</li>)}</ul></div>)}</div>:<Placeholder text="Add a project"/>;}case"certifications":{const d=section.data as SectionData["certifications"];return d.items.length?<ul className="space-y-1.5">{d.items.map((c,i)=><li key={i} className={text}><strong className="text-zinc-900">{c.name}</strong> — {c.issuer}{c.date?` (${c.date})`:""}</li>)}</ul>:<Placeholder text="Add certifications"/>;}case"skills":return null;case"achievements":case"activities":{const d=section.data as {items:string[]};return <ul className="space-y-1">{d.items.filter(Boolean).map((item,i)=><li key={i} className={text}>• {item}</li>)}</ul>;}}}
-function Placeholder({text}:{text:string}){return <span className="text-[10.5px] italic text-zinc-400">{text}</span>;}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <h2 className="text-[9px] uppercase tracking-[0.2em] font-bold mb-2">{children}</h2>;
+}
+
+function SidebarSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="mb-6 break-inside-avoid"><h2 className="text-[9px] uppercase tracking-[0.2em] font-bold pb-1.5 mb-2 border-b border-[#777]">{title}</h2>{children}</section>;
+}
+
+function MainSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="mb-6 break-inside-avoid"><h2 className="text-[10px] uppercase tracking-[0.18em] font-bold text-[#383838] pb-1.5 mb-3 border-b border-[#9c9c9c]">{title}</h2>{children}</section>;
+}
+
+function SummaryBody({ section }: { section: ResumeSection }) {
+  const d = section.data as SectionData["summary"];
+  return <p className="text-[8.5px] leading-[1.5] text-[#4b4035]">{d.text || <span className="italic text-[#6b5a49]">Add your professional summary...</span>}</p>;
+}
+
+function EducationBody({ section }: { section: ResumeSection }) {
+  const d = section.data as SectionData["education"];
+  if (!d.items.length) return <p className="text-[8.5px] italic text-[#666]">Add education</p>;
+  return <div className="space-y-3">{d.items.map((e, i) => <div key={i} className="text-[8.5px] leading-[1.4]"><p className="font-bold uppercase text-[8.5px]">{e.school}</p><p>{e.degree}</p><p className="text-[#555]">{e.start} – {e.end}</p>{e.details && <p className="mt-0.5">{e.details}</p>}</div>)}</div>;
+}
+
+function SkillsBody({ section }: { section: ResumeSection }) {
+  const d = section.data as SectionData["skills"];
+  if (!d.items.length) return <p className="text-[8.5px] italic text-[#666]">Add skills</p>;
+  return <ul className="space-y-1.5 text-[8.5px] leading-[1.35]">{d.items.map((skill) => <li key={skill} className="pl-2 -indent-2">• {skill}</li>)}</ul>;
+}
+
+function SoftSkillsBody({ sections }: { sections: ResumeSection[] }) {
+  const items = sections.flatMap((s) => (s.data as { items: string[] }).items).filter(Boolean);
+  if (!items.length) return <p className="text-[8.5px] italic text-[#666]">Add strengths</p>;
+  return <ul className="space-y-1.5 text-[8.5px] leading-[1.35]">{items.map((item, i) => <li key={i} className="pl-2 -indent-2">• {item}</li>)}</ul>;
+}
+
+function ExperienceBody({ section }: { section: ResumeSection }) {
+  const d = section.data as SectionData["experience"];
+  if (!d.items.length) return <p className="text-[9px] italic text-zinc-400">Add work history</p>;
+  return <div className="space-y-5">{d.items.map((e, i) => <article key={i}>
+    <div className="flex justify-between gap-3 items-baseline">
+      <div className="min-w-0"><p className="font-bold text-[9.5px] uppercase tracking-[0.04em] text-[#343434]">{e.role}</p><p className="text-[8.5px] text-[#555]">{e.company}</p></div>
+      <p className="shrink-0 text-[8px] text-[#666]">{e.start} – {e.end}</p>
+    </div>
+    <ul className="mt-1.5 space-y-1">{e.bullets.filter(Boolean).map((b, j) => <li key={j} className="text-[8.5px] leading-[1.45] text-[#4a4a4a] pl-2.5 -indent-2.5">• {b}</li>)}</ul>
+  </article>)}</div>;
+}
+
+function GenericBody({ section }: { section: ResumeSection }) {
+  const text = "text-[9px] leading-[1.45] text-[#4a4a4a]";
+  switch (section.type) {
+    case "projects": { const d = section.data as SectionData["projects"]; return d.items.length ? <div className="space-y-3">{d.items.map((p, i) => <article key={i}><div className="flex justify-between gap-3"><p className="font-bold text-[9.5px]">{p.name}</p><p className="text-[8px] text-[#666]">{p.tech}</p></div>{p.link && <p className="text-[7.5px] text-[#777] break-all">{p.link}</p>}<ul className="mt-1">{p.bullets.filter(Boolean).map((b, j) => <li key={j} className={text}>• {b}</li>)}</ul></article>)}</div> : <Placeholder text="Add a project" />; }
+    case "certifications": { const d = section.data as SectionData["certifications"]; return d.items.length ? <ul className="space-y-1.5">{d.items.map((c, i) => <li key={i} className={text}><strong>{c.name}</strong> — {c.issuer}{c.date ? ` (${c.date})` : ""}</li>)}</ul> : <Placeholder text="Add certifications" />; }
+    default: return <Placeholder text={`Add ${sectionTitle(section.type).toLowerCase()}`} />;
+  }
+}
+
+function Placeholder({ text }: { text: string }) { return <span className="text-[9px] italic text-zinc-400">{text}</span>; }
