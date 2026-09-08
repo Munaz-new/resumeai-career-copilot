@@ -2,7 +2,7 @@
 
 export type ProfileType = "student" | "fresher" | "experienced" | "switcher";
 export type ExpLevel = "none" | "internship" | "beginner" | "experienced";
-export type TemplateId = "ats-pro" | "fresher-tech" | "modern-pro" | "creative-tech" | "modern-sidebar";
+export type TemplateId = "ats-pro" | "fresher-tech" | "modern-pro" | "creative-tech" | "modern-sidebar" | "editorial-cv";
 export type SectionType =
   | "summary"
   | "skills"
