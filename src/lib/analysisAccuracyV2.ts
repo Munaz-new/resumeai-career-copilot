@@ -124,9 +124,6 @@ function calculateKeywordMatch(
   const resumeNorm = normalizeText(resumeText);
   const jdNorm = normalizeText(jdText);
   const skillSet = new Set(exactSkills.requiredSkills);
-
-  // Score meaningful JD terms rather than every word. Skill terms get the
-  // highest weight, while repeated or technical terms receive additional weight.
   const frequencies = new Map<string, number>();
   for (const word of wordTokens(jdNorm)) {
     frequencies.set(word, (frequencies.get(word) ?? 0) + 1);
@@ -155,6 +152,10 @@ function calculateKeywordMatch(
   return Math.round(((skillScore + lexicalScore) / totalWeight) * 100);
 }
 
+function filterDebugSkills(values: string[], allowed: Set<string>): string[] {
+  return unique(values.map((value) => value.toLowerCase().trim()).filter((value) => allowed.has(value)));
+}
+
 export function analyzeResume(resumeText: string, jobDescription: string, roastMode: boolean): { result: AnalysisResult; debug: DebugInfo } {
   const legacy = legacyAnalyzeResume(resumeText, jobDescription, roastMode);
   const exactSkills = calculateSkillMatch(legacy.result, resumeText, jobDescription);
@@ -175,11 +176,20 @@ export function analyzeResume(resumeText: string, jobDescription: string, roastM
   correctedResult.jobReadiness = Math.min(100, Math.round(
     correctedResult.atsScore * 0.4 + exactSkills.skillsMatch * 0.3 + correctedResult.sectionCompleteness * 0.15 + correctedResult.readabilityScore * 0.15
   ));
+
+  const matchedSet = new Set(exactSkills.matchedSkills);
+  const missingSet = new Set(exactSkills.missingSkills);
   const debug: DebugInfo = {
     ...legacy.debug,
     matchedKeywordsCount: Math.round((keywordMatch / 100) * Math.max(1, legacy.debug.totalJDKeywords)),
     matchedSkillsCount: exactSkills.matchedSkills.length,
     totalRequiredSkills: exactSkills.requiredSkills.length,
+    matchedTechnical: filterDebugSkills(legacy.debug.matchedTechnical, matchedSet),
+    matchedTools: filterDebugSkills(legacy.debug.matchedTools, matchedSet),
+    matchedSoft: filterDebugSkills(legacy.debug.matchedSoft, matchedSet),
+    missingTechnical: filterDebugSkills(legacy.debug.missingTechnical, missingSet),
+    missingTools: filterDebugSkills(legacy.debug.missingTools, missingSet),
+    missingSoft: filterDebugSkills(legacy.debug.missingSoft, missingSet),
     formulaOutput: correctedResult.atsScore,
   };
   return { result: correctedResult, debug };
