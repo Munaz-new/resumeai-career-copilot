@@ -8,9 +8,10 @@ import { buildScoreBreakdown } from "./scoreBreakdown";
  * Accuracy layer for the existing analyzer.
  *
  * The legacy analyzer is intentionally kept as the source of the broader
- * resume-quality signals. This layer corrects two high-impact matching issues:
+ * resume-quality signals. This layer corrects high-impact matching issues:
  * 1. substring matches such as "java" inside "javascript";
- * 2. keyword scores being diluted by generic job-description boilerplate.
+ * 2. keyword scores being diluted by generic job-description boilerplate;
+ * 3. keyword scores treating every remaining JD word as equally important.
  */
 
 const STOP_WORDS = new Set([
@@ -28,7 +29,13 @@ const STOP_WORDS = new Set([
   "support", "help", "helps", "ability", "abilities", "knowledge", "skills", "skill", "team", "teams",
   "environment", "environments", "opportunity", "opportunities", "join", "joining", "successful",
   "success", "responsible", "develop", "development", "using", "use", "used", "across", "within",
-  "ensure", "ensuring", "maintain", "maintaining", "related", "relevant", "etcetera",
+  "ensure", "ensuring", "maintain", "maintaining", "related", "relevant", "etcetera", "motivated",
+  "professional", "familiarity", "understanding", "understand", "follow", "follows", "following",
+  "looking", "seeking", "build", "built", "write", "writes", "wrote", "provide", "provides",
+  "participate", "contribute", "contributes", "identify", "identified", "implement", "implemented",
+  "deliver", "delivered", "create", "created", "create", "make", "made", "ensure", "ensuring",
+  "basic", "modern", "effective", "clean", "readable", "reusable", "maintainable", "reliable",
+  "scalable", "user", "users", "teamwork", "communication",
 ]);
 
 const ALIASES: Record<string, string> = {
@@ -100,6 +107,14 @@ function calculateSkillMatch(result: AnalysisResult, resumeText: string, jdText:
   return { requiredSkills, matchedSkills, missingSkills, skillsMatch };
 }
 
+function keywordWeight(keyword: string, frequency: number, skillSet: Set<string>): number {
+  if (skillSet.has(keyword)) return 3;
+  if (/[+#.]|\d/.test(keyword)) return 2.5;
+  if (frequency >= 3) return 2;
+  if (frequency === 2) return 1.5;
+  return 1;
+}
+
 function calculateKeywordMatch(
   result: AnalysisResult,
   resumeText: string,
@@ -109,15 +124,36 @@ function calculateKeywordMatch(
   const resumeNorm = normalizeText(resumeText);
   const jdNorm = normalizeText(jdText);
   const skillSet = new Set(exactSkills.requiredSkills);
-  const skillKeywords = exactSkills.requiredSkills;
-  const lexicalKeywords = unique(wordTokens(jdNorm))
+  const frequencies = new Map<string, number>();
+  for (const word of wordTokens(jdNorm)) {
+    frequencies.set(word, (frequencies.get(word) ?? 0) + 1);
+  }
+
+  const lexicalKeywords = [...frequencies.keys()]
     .filter((word) => !skillSet.has(word))
-    .filter((word) => !skillKeywords.some((skill) => skill.split(/\s+/).includes(word)));
-  const matchedSkillKeywords = skillKeywords.filter((skill) => containsTerm(resumeNorm, skill));
-  const matchedLexicalKeywords = lexicalKeywords.filter((word) => containsTerm(resumeNorm, word));
-  const total = skillKeywords.length + lexicalKeywords.length;
-  if (total === 0) return result.keywordMatch;
-  return Math.round(((matchedSkillKeywords.length + matchedLexicalKeywords.length) / total) * 100);
+    .filter((word) => !exactSkills.requiredSkills.some((skill) => skill.split(/\s+/).includes(word)))
+    .filter((word) => word.length >= 4);
+
+  const skillScore = exactSkills.requiredSkills.reduce((sum, skill) => {
+    return sum + (containsTerm(resumeNorm, skill) ? keywordWeight(skill, 1, skillSet) : 0);
+  }, 0);
+  const totalSkillWeight = exactSkills.requiredSkills.reduce((sum, skill) => sum + keywordWeight(skill, 1, skillSet), 0);
+
+  const lexicalScore = lexicalKeywords.reduce((sum, word) => {
+    return sum + (containsTerm(resumeNorm, word) ? keywordWeight(word, frequencies.get(word) ?? 1, skillSet) : 0);
+  }, 0);
+  const totalLexicalWeight = lexicalKeywords.reduce(
+    (sum, word) => sum + keywordWeight(word, frequencies.get(word) ?? 1, skillSet),
+    0
+  );
+
+  const totalWeight = totalSkillWeight + totalLexicalWeight;
+  if (totalWeight === 0) return result.keywordMatch;
+  return Math.round(((skillScore + lexicalScore) / totalWeight) * 100);
+}
+
+function filterDebugSkills(values: string[], allowed: Set<string>): string[] {
+  return unique(values.map((value) => value.toLowerCase().trim()).filter((value) => allowed.has(value)));
 }
 
 export function analyzeResume(resumeText: string, jobDescription: string, roastMode: boolean): { result: AnalysisResult; debug: DebugInfo } {
@@ -140,11 +176,20 @@ export function analyzeResume(resumeText: string, jobDescription: string, roastM
   correctedResult.jobReadiness = Math.min(100, Math.round(
     correctedResult.atsScore * 0.4 + exactSkills.skillsMatch * 0.3 + correctedResult.sectionCompleteness * 0.15 + correctedResult.readabilityScore * 0.15
   ));
+
+  const matchedSet = new Set(exactSkills.matchedSkills);
+  const missingSet = new Set(exactSkills.missingSkills);
   const debug: DebugInfo = {
     ...legacy.debug,
     matchedKeywordsCount: Math.round((keywordMatch / 100) * Math.max(1, legacy.debug.totalJDKeywords)),
     matchedSkillsCount: exactSkills.matchedSkills.length,
     totalRequiredSkills: exactSkills.requiredSkills.length,
+    matchedTechnical: filterDebugSkills(legacy.debug.matchedTechnical, matchedSet),
+    matchedTools: filterDebugSkills(legacy.debug.matchedTools, matchedSet),
+    matchedSoft: filterDebugSkills(legacy.debug.matchedSoft, matchedSet),
+    missingTechnical: filterDebugSkills(legacy.debug.missingTechnical, missingSet),
+    missingTools: filterDebugSkills(legacy.debug.missingTools, missingSet),
+    missingSoft: filterDebugSkills(legacy.debug.missingSoft, missingSet),
     formulaOutput: correctedResult.atsScore,
   };
   return { result: correctedResult, debug };
