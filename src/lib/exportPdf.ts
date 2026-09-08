@@ -91,7 +91,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.text("ResumeAI", margin, 24);
   doc.setTextColor(...C.purple);
   doc.setFontSize(8);
-  doc.text("AI CAREER INTELLIGENCE  /  ANALYSIS REPORT", margin, 30);
+  doc.text("CAREER COPILOT  /  ANALYSIS REPORT", margin, 30);
 
   doc.setTextColor(...C.muted);
   doc.setFont("helvetica", "normal");
@@ -358,7 +358,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(...C.muted);
-    doc.text("ResumeAI  |  AI Career Intelligence", margin, pageH - 7);
+    doc.text("ResumeAI Career Copilot", margin, pageH - 7);
     doc.text(`${i} / ${pageCount}`, pageW - margin, pageH - 7, { align: "right" });
   }
 
