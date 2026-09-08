@@ -8,15 +8,7 @@ import { LiveATSPanel } from "@/components/builder/LiveATSPanel";
 import { ResumeCompletionMeter } from "@/components/builder/ResumeCompletionMeter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  type ResumeDraft,
-  type TemplateId,
-  createEmptyDraft,
-  initSectionsFor,
-  loadDraft,
-  saveDraft,
-  clearDraft,
-} from "@/lib/resumeDraft";
+import { type ResumeDraft, type TemplateId, createEmptyDraft, initSectionsFor, loadDraft, saveDraft, clearDraft } from "@/lib/resumeDraft";
 import { exportResumePdf } from "@/lib/builderPdf";
 import { Download, RotateCcw, Eye, Pencil, FileText, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -30,6 +22,7 @@ const TEMPLATES: { id: TemplateId; label: string; desc: string }[] = [
   { id: "modern-pro", label: "Modern Professional", desc: "Balanced" },
   { id: "creative-tech", label: "One Page", desc: "Modern sidebar" },
   { id: "modern-sidebar", label: "Modern Sidebar", desc: "Visual two-column CV" },
+  { id: "editorial-cv", label: "Editorial CV", desc: "Classic gray & tan" },
 ];
 
 export default function BuilderPage() {
@@ -43,15 +36,11 @@ export default function BuilderPage() {
   const { isGuest } = useAuth();
 
   const handleExport = async (d: ResumeDraft) => {
-    if (!previewRef.current) {
-      toast.error("Preview not ready yet");
-      return;
-    }
+    if (!previewRef.current) { toast.error("Preview not ready yet"); return; }
     try {
       setExporting(true);
       const mode = await exportResumePdf(previewRef.current, d);
-      if (mode === "fallback") toast.success("PDF downloaded (safe mode)");
-      else toast.success("PDF downloaded");
+      if (mode === "fallback") toast.success("PDF downloaded (safe mode)"); else toast.success("PDF downloaded");
       if (isGuest && !sessionStorage.getItem("save_account_prompted")) {
         sessionStorage.setItem("save_account_prompted", "1");
         setTimeout(() => setShowSaveAccount(true), 600);
@@ -122,12 +111,10 @@ export default function BuilderPage() {
             <Button variant="ghost" size="sm" onClick={() => { if (confirm("Reset the builder and start over?")) { clearDraft(); setDraft(null); toast.success("Builder reset"); } }}><RotateCcw className="w-4 h-4 mr-1" />Reset</Button>
           </div>
         </div>
-
         <div className="lg:hidden flex gap-1 mb-4 bg-muted rounded-xl p-1">
           <button className={cn("flex-1 text-xs font-medium py-1.5 rounded-lg flex items-center justify-center gap-1", mobileView === "edit" ? "bg-background shadow-sm" : "text-muted-foreground")} onClick={() => setMobileView("edit")}><Pencil className="w-3.5 h-3.5" />Edit</button>
           <button className={cn("flex-1 text-xs font-medium py-1.5 rounded-lg flex items-center justify-center gap-1", mobileView === "preview" ? "bg-background shadow-sm" : "text-muted-foreground")} onClick={() => setMobileView("preview")}><Eye className="w-3.5 h-3.5" />Preview</button>
         </div>
-
         <div className="grid lg:grid-cols-[260px_minmax(0,1fr)_320px] gap-6">
           <div className={cn("space-y-4", mobileView === "preview" && "hidden lg:block")}>
             <p className="hidden lg:block text-[11px] uppercase tracking-wide font-bold text-muted-foreground px-1">Edit</p>
@@ -145,7 +132,6 @@ export default function BuilderPage() {
             </div>
             <div className="dashboard-card"><h3 className="font-heading font-bold text-foreground text-sm mb-3">Sections</h3><SectionList sections={draft.sections} activeId={activeId} onSelect={setActiveId} onChange={(sections) => update({ sections })} /></div>
           </div>
-
           <div className="space-y-4">
             <div className={cn(mobileView === "preview" && "hidden lg:block")}>{active ? <SectionEditor section={active} draft={draft} onChange={(next) => updateSection(active.id, next)} /> : <div className="dashboard-card text-center py-10 text-sm text-muted-foreground">Select a section on the left to start editing</div>}</div>
             <div className={cn(mobileView === "edit" && "hidden lg:block")}>
@@ -153,7 +139,6 @@ export default function BuilderPage() {
               <ResumePreview draft={draft} innerRef={previewRef} />
             </div>
           </div>
-
           <div className={cn("space-y-3", mobileView === "preview" && "hidden lg:block")}><p className="hidden lg:block text-[11px] uppercase tracking-wide font-bold text-muted-foreground px-1">ATS Coach</p><div className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"><LiveATSPanel draft={draft} /></div></div>
         </div>
       </div>

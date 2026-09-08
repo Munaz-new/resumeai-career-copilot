@@ -2,6 +2,7 @@ import type { ResumeDraft, ResumeSection, SectionData, TemplateId } from "@/lib/
 import { sectionTitle } from "@/lib/resumeDraft";
 import { cn } from "@/lib/utils";
 import { ModernSidebarPreview } from "./ModernSidebarPreview";
+import { EditorialCvPreview } from "./EditorialCvPreview";
 
 const TEMPLATE_STYLES: Record<TemplateId, { accent: string; headerAlign: "left" | "center"; rule: string; font: string }> = {
   "ats-pro": { accent: "text-zinc-900", headerAlign: "left", rule: "border-zinc-900", font: "font-sans" },
@@ -9,10 +10,12 @@ const TEMPLATE_STYLES: Record<TemplateId, { accent: string; headerAlign: "left" 
   "modern-pro": { accent: "text-zinc-800", headerAlign: "left", rule: "border-zinc-300", font: "font-sans" },
   "creative-tech": { accent: "text-teal-800", headerAlign: "left", rule: "border-teal-700", font: "font-sans" },
   "modern-sidebar": { accent: "text-[#405f61]", headerAlign: "left", rule: "border-[#405f61]", font: "font-sans" },
+  "editorial-cv": { accent: "text-[#343434]", headerAlign: "left", rule: "border-[#9c9c9c]", font: "font-sans" },
 };
 
 export function ResumePreview({ draft, innerRef }: { draft: ResumeDraft; innerRef?: React.Ref<HTMLDivElement> }) {
   if (draft.template === "modern-sidebar") return <ModernSidebarPreview draft={draft} innerRef={innerRef} />;
+  if (draft.template === "editorial-cv") return <EditorialCvPreview draft={draft} innerRef={innerRef} />;
 
   const t = TEMPLATE_STYLES[draft.template];
   const sorted = [...draft.sections].filter((s) => s.enabled).sort((a, b) => a.order - b.order);
