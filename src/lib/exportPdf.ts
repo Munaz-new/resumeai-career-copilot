@@ -26,13 +26,42 @@ function scoreColor(score: number): [number, number, number] {
   return COLORS.red;
 }
 
-function roundedCard(doc: jsPDF, x: number, y: number, w: number, h: number, fill: [number, number, number], stroke = COLORS.line) {
+function impactLabel(score: number) {
+  if (score >= 80) return "Strong";
+  if (score >= 60) return "Good";
+  if (score >= 40) return "Needs work";
+  return "Priority";
+}
+
+function impactColor(score: number): [number, number, number] {
+  if (score >= 80) return COLORS.green;
+  if (score >= 60) return COLORS.blue;
+  if (score >= 40) return COLORS.amber;
+  return COLORS.red;
+}
+
+function roundedCard(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  fill: [number, number, number],
+  stroke = COLORS.line,
+) {
   doc.setFillColor(...fill);
   doc.setDrawColor(...stroke);
   doc.roundedRect(x, y, w, h, 4, 4, "FD");
 }
 
-function progress(doc: jsPDF, x: number, y: number, w: number, value: number, color: [number, number, number]) {
+function progress(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  w: number,
+  value: number,
+  color: [number, number, number],
+) {
   doc.setFillColor(226, 232, 240);
   doc.roundedRect(x, y, w, 3, 1.5, 1.5, "F");
   doc.setFillColor(...color);
@@ -47,6 +76,10 @@ function sectionTitle(doc: jsPDF, title: string, x: number, y: number) {
   doc.setDrawColor(...COLORS.purple);
   doc.setLineWidth(0.8);
   doc.line(x, y + 3, x + 34, y + 3);
+}
+
+function safeFirstLine(doc: jsPDF, text: string, width: number) {
+  return doc.splitTextToSize(text, width)[0] ?? text;
 }
 
 export function exportAnalysisReport(result: AnalysisResult, fileName: string, jobTitle: string) {
@@ -75,7 +108,6 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.text(`Generated ${now}`, pageW - margin, 25, { align: "right" });
   doc.text(fileName || "Pasted Resume", pageW - margin, 30, { align: "right" });
 
-  // Candidate / target role strip
   roundedCard(doc, margin, 38, contentW, 19, COLORS.purpleSoft, [221, 214, 254]);
   doc.setTextColor(...COLORS.muted);
   doc.setFontSize(7);
@@ -87,7 +119,11 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setTextColor(...COLORS.muted);
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
-  doc.text("ResumeAI evaluates match quality, ATS compatibility, and recruiter readiness.", margin + 80, 49);
+  doc.text(
+    "ResumeAI evaluates match quality, ATS compatibility, and recruiter readiness.",
+    margin + 80,
+    49,
+  );
 
   // Hero metrics
   const cardY = 64;
@@ -117,7 +153,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     doc.text("/ 100", x + 31, cardY + 24.5);
   });
 
-  // Why this score + progress bars
+  // Why this score
   sectionTitle(doc, "Why this score", margin, 111);
   const breakdown = result.scoreBreakdown ?? [];
   let y = 120;
@@ -128,6 +164,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     { label: "Formatting", score: result.formattingScore, delta: 0, positive: true },
     { label: "Readability", score: result.readabilityScore, delta: 0, positive: true },
     { label: "Section Completeness", score: result.sectionCompleteness, delta: 0, positive: true },
+    { label: "Achievement Quality", score: result.achievementQuality ?? 0, delta: 0, positive: true },
   ];
 
   for (const item of breakdownItems.slice(0, 7)) {
@@ -141,6 +178,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
       : /parse/i.test(item.label) ? (result.parseability ?? 0)
       : /achievement/i.test(item.label) ? (result.achievementQuality ?? 0)
       : 0;
+
     doc.setTextColor(...COLORS.ink);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
@@ -148,19 +186,50 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...COLORS.muted);
     doc.text(`${score}%`, margin + contentW, y, { align: "right" });
-    progress(doc, margin, y + 3, contentW, score, scoreColor(score));
-    y += 11;
+    progress(doc, margin, y + 3, contentW - 22, score, scoreColor(score));
+    doc.setTextColor(...impactColor(score));
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.5);
+    doc.text(impactLabel(score).toUpperCase(), margin + contentW, y + 3, { align: "right" });
+    y += 9;
   }
 
-  // Two-column skills section
-  y += 4;
+  // Top priorities
+  y += 3;
+  sectionTitle(doc, "Top 3 priorities", margin, y);
+  y += 7;
+  const priorityItems = (result.weaknesses?.length ? result.weaknesses : result.suggestions ?? []).slice(0, 3);
+  const priorities = priorityItems.length > 0
+    ? priorityItems
+    : [
+        "Improve measurable achievements with specific outcomes.",
+        "Strengthen alignment with the target role's required skills.",
+        "Review keyword distribution for the target job description.",
+      ];
+
+  priorities.forEach((item, i) => {
+    const x = margin + i * (contentW / 3);
+    const w = contentW / 3 - 3;
+    roundedCard(doc, x, y, w, 25, COLORS.white, COLORS.line);
+    doc.setTextColor(...COLORS.purple);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(String(i + 1).padStart(2, "0"), x + 6, y + 9);
+    doc.setTextColor(...COLORS.ink);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text(doc.splitTextToSize(item, w - 26).slice(0, 3), x + 22, y + 7);
+  });
+
+  // Skill analysis
+  y += 33;
   sectionTitle(doc, "Skill analysis", margin, y);
-  y += 9;
+  y += 8;
   const colGap = 6;
   const colW = (contentW - colGap) / 2;
   const leftX = margin;
   const rightX = margin + colW + colGap;
-  const skillBoxH = 43;
+  const skillBoxH = 35;
 
   roundedCard(doc, leftX, y, colW, skillBoxH, [240, 253, 244], [187, 247, 208]);
   doc.setFont("helvetica", "bold");
@@ -168,10 +237,10 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setTextColor(...COLORS.green);
   doc.text(`MATCHED SKILLS  (${result.matchedSkills.length})`, leftX + 7, y + 9);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(...COLORS.ink);
-  const matched = result.matchedSkills.join("  •  ") || "None detected";
-  doc.text(doc.splitTextToSize(matched, colW - 14), leftX + 7, y + 18);
+  const matched = result.matchedSkills.join(" - ") || "None detected";
+  doc.text(doc.splitTextToSize(matched, colW - 14).slice(0, 3), leftX + 7, y + 17);
 
   roundedCard(doc, rightX, y, colW, skillBoxH, [254, 242, 242], [254, 202, 202]);
   doc.setFont("helvetica", "bold");
@@ -179,17 +248,12 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setTextColor(...COLORS.red);
   doc.text(`MISSING SKILLS  (${result.missingSkills.length})`, rightX + 7, y + 9);
   doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
   doc.setTextColor(...COLORS.ink);
-  const missing = result.missingSkills.join("  •  ") || "None detected";
-  doc.text(doc.splitTextToSize(missing, colW - 14), rightX + 7, y + 18);
+  const missing = result.missingSkills.join(" - ") || "None detected";
+  doc.text(doc.splitTextToSize(missing, colW - 14).slice(0, 3), rightX + 7, y + 17);
 
-  // Footer page 1
-  doc.setFontSize(7);
-  doc.setTextColor(...COLORS.muted);
-  doc.text("ResumeAI  •  Analysis Report", margin, pageH - 9);
-  doc.text("1 / 2", pageW - margin, pageH - 9, { align: "right" });
-
-  // PAGE 2: actions and readiness
+  // PAGE 2
   doc.addPage();
   doc.setFillColor(...COLORS.ink);
   doc.rect(0, 0, pageW, 10, "F");
@@ -204,10 +268,15 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.text("Turn the analysis into focused resume improvements.", margin, 31);
 
   const readinessScore = clamp(result.jobReadiness ?? result.atsScore);
-  const readiness = readinessScore >= 80 ? "Industry Ready" : readinessScore >= 60 ? "Job Ready" : readinessScore >= 40 ? "Internship Ready" : "Not Ready";
+  const readiness = readinessScore >= 80
+    ? "Industry Ready"
+    : readinessScore >= 60
+      ? "Job Ready"
+      : readinessScore >= 40
+        ? "Internship Ready"
+        : "Not Ready";
   const readinessColor = scoreColor(readinessScore);
 
-  // Readiness hero
   roundedCard(doc, margin, 40, contentW, 43, COLORS.purpleSoft, [221, 214, 254]);
   doc.setTextColor(...COLORS.purple);
   doc.setFont("helvetica", "bold");
@@ -231,7 +300,6 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.text("Job Ready", pageW / 2 + 18, 69);
   doc.text("Industry Ready", pageW - margin - 18, 69, { align: "right" });
 
-  // Strengths / weaknesses
   sectionTitle(doc, "Strengths & opportunities", margin, 98);
   const halfGap = 6;
   const halfW = (contentW - halfGap) / 2;
@@ -249,7 +317,7 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setFontSize(8);
   const strengths = result.strengths?.slice(0, 5) ?? [];
   strengths.forEach((item, i) => {
-    doc.text(`+ ${doc.splitTextToSize(item, halfW - 16)[0]}`, margin + 7, boxY + 18 + i * 7);
+    doc.text(`- ${safeFirstLine(doc, item, halfW - 16)}`, margin + 7, boxY + 18 + i * 7);
   });
   if (strengths.length === 0) doc.text("No strengths recorded.", margin + 7, boxY + 19);
 
@@ -261,11 +329,10 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
   doc.setTextColor(...COLORS.ink);
   const weaknesses = result.weaknesses?.slice(0, 5) ?? [];
   weaknesses.forEach((item, i) => {
-    doc.text(`→ ${doc.splitTextToSize(item, halfW - 16)[0]}`, rightBoxX + 7, boxY + 18 + i * 7);
+    doc.text(`- ${safeFirstLine(doc, item, halfW - 16)}`, rightBoxX + 7, boxY + 18 + i * 7);
   });
   if (weaknesses.length === 0) doc.text("No major gaps recorded.", rightBoxX + 7, boxY + 19);
 
-  // Suggestions table
   sectionTitle(doc, "Smart suggestions", margin, 171);
   const suggestions = result.suggestions?.slice(0, 7) ?? [];
   autoTable(doc, {
@@ -278,18 +345,23 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     margin: { left: margin, right: margin },
     styles: { fontSize: 8.5, cellPadding: 5, textColor: COLORS.ink, lineColor: COLORS.line },
     headStyles: { fillColor: COLORS.ink, textColor: COLORS.white, fontStyle: "bold" },
-    columnStyles: { 0: { cellWidth: 18, fontStyle: "bold", textColor: COLORS.purple }, 1: { cellWidth: contentW - 18 } },
+    columnStyles: {
+      0: { cellWidth: 18, fontStyle: "bold", textColor: COLORS.purple },
+      1: { cellWidth: contentW - 18 },
+    },
     alternateRowStyles: { fillColor: [248, 250, 252] },
   });
 
-  y = ((doc as any).lastAutoTable?.finalY ?? 230) + 12;
+  let finalY = ((doc as any).lastAutoTable?.finalY ?? 230) + 12;
+  if (finalY > 250) {
+    doc.addPage();
+    finalY = 22;
+  }
 
-  // Compact final score table
-  if (y > 250) { doc.addPage(); y = 22; }
-  sectionTitle(doc, "Final score snapshot", margin, y);
-  y += 7;
+  sectionTitle(doc, "Final score snapshot", margin, finalY);
+  finalY += 7;
   autoTable(doc, {
-    startY: y,
+    startY: finalY,
     head: [["ATS", "Keywords", "Skills", "Formatting", "Readability", "Sections"]],
     body: [[
       `${result.atsScore}%`, `${result.keywordMatch}%`, `${result.skillsMatch}%`,
@@ -302,15 +374,17 @@ export function exportAnalysisReport(result: AnalysisResult, fileName: string, j
     bodyStyles: { textColor: COLORS.ink, fontStyle: "bold" },
   });
 
+  // Single standardized footer on every page.
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setDrawColor(...COLORS.line);
     doc.setLineWidth(0.3);
     doc.line(margin, pageH - 13, pageW - margin, pageH - 13);
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(...COLORS.muted);
-    doc.text("ResumeAI  •  AI-Powered Resume Analysis", margin, pageH - 7);
+    doc.text("ResumeAI  |  AI-Powered Resume Analysis", margin, pageH - 7);
     doc.text(`${i} / ${pageCount}`, pageW - margin, pageH - 7, { align: "right" });
   }
 
