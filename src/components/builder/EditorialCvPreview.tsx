@@ -29,7 +29,7 @@ export function EditorialCvPreview({ draft, innerRef }: { draft: ResumeDraft; in
           <p className="mt-2 text-[8px] uppercase tracking-[0.26em] text-[#555]">{draft.targetRole || "Professional Title"}</p>
         </div>
       </header>
-      {summary && <div className="bg-[#c9a776] px-6 py-4.5 text-[#44372a]"><SectionLabel>Summary</SectionLabel><SummaryBody section={summary} /></div>}
+      {summary && <div className="bg-[#c9a776] px-6 py-4 text-[#44372a]"><SectionLabel>Summary</SectionLabel><SummaryBody section={summary} /></div>}
       <div className="grid grid-cols-[30%_70%] min-h-[850px]">
         <aside className="bg-[#b9b9b9] px-6 py-5 text-[#303030]">
           {education && <SidebarSection title="Education"><EducationBody section={education} /></SidebarSection>}
