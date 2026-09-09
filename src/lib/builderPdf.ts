@@ -4,6 +4,7 @@ import type { ResumeDraft } from "./resumeDraft";
 import { exportResumePdfSafe } from "./builderPdfFallback";
 import { exportEditorialCvPdf } from "./editorialCvPdf";
 import { exportModernSidebarPdf } from "./modernSidebarPdf";
+import { exportStandardResumePdf } from "./standardResumePdf";
 
 /**
  * WYSIWYG PDF export with automatic fallback.
@@ -22,6 +23,7 @@ export type ExportMode = "wysiwyg" | "fallback";
 const UNSUPPORTED_COLOR_RE = /(oklch|oklab|lab\(|lch\(|color\(|color-mix)/i;
 const PDF_RENDER_WIDTH = 760;
 const ONE_PAGE_TOLERANCE = 1.08;
+const STANDARD_TEMPLATES = new Set(["ats-pro", "fresher-tech", "modern-pro"]);
 
 function safeCssValue(property: string, value: string): string | null {
   if (!value || UNSUPPORTED_COLOR_RE.test(value)) {
@@ -98,8 +100,17 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
   try {
-    // Visual two-column templates use deterministic PDF renderers so their
-    // downloaded files stay faithful to the live design across browsers.
+    // These templates use a deterministic text renderer because browser
+    // canvas/PDF rendering can place inline text nodes on top of each other.
+    // Their preview designs and all other templates remain unchanged.
+    if (STANDARD_TEMPLATES.has(draft.template)) {
+      exportStandardResumePdf(draft);
+      console.info("[PDF] Standard template deterministic export complete", { template: draft.template });
+      return "wysiwyg";
+    }
+
+    // Visual two-column templates use dedicated deterministic PDF renderers so
+    // their downloaded files stay faithful to the live design across browsers.
     if (draft.template === "editorial-cv") {
       exportEditorialCvPdf(draft);
       console.info("[PDF] Editorial CV deterministic export complete");
