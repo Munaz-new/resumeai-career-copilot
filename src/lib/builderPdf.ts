@@ -3,6 +3,7 @@ import html2canvas from "html2canvas";
 import type { ResumeDraft } from "./resumeDraft";
 import { exportResumePdfSafe } from "./builderPdfFallback";
 import { exportEditorialCvPdf } from "./editorialCvPdf";
+import { exportModernSidebarPdf } from "./modernSidebarPdf";
 
 /**
  * WYSIWYG PDF export with automatic fallback.
@@ -97,11 +98,17 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
   try {
-    // Editorial CV is the only template using the deterministic jsPDF renderer.
-    // All other templates retain the existing WYSIWYG export path.
+    // Visual two-column templates use deterministic PDF renderers so their
+    // downloaded files stay faithful to the live design across browsers.
     if (draft.template === "editorial-cv") {
       exportEditorialCvPdf(draft);
       console.info("[PDF] Editorial CV deterministic export complete");
+      return "wysiwyg";
+    }
+
+    if (draft.template === "modern-sidebar") {
+      exportModernSidebarPdf(draft);
+      console.info("[PDF] Modern Sidebar deterministic export complete");
       return "wysiwyg";
     }
 
@@ -116,10 +123,6 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     try {
       canvas = await captureWysiwyg(element, false);
     } catch (primaryError) {
-      // Some browser/template combinations still fail html2canvas's normal
-      // renderer even after CSS sanitization. Retry with SVG foreignObject
-      // rendering before falling back to the text-only PDF. This keeps the
-      // actual template design instead of silently producing a different CV.
       console.warn("[PDF] primary capture failed, retrying foreignObject renderer", primaryError);
       canvas = await captureWysiwyg(element, true);
     }
