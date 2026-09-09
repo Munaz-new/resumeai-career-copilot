@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import type { ResumeDraft, ResumeSection, SectionData } from "./resumeDraft";
+import type { ResumeDraft, SectionData } from "./resumeDraft";
 
 const GRAY: [number, number, number] = [185, 185, 185];
 const GOLD: [number, number, number] = [201, 167, 118];
