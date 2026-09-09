@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import type { ResumeDraft, ResumeSection, SectionData, TemplateId } from "./resumeDraft";
 import { sectionTitle } from "./resumeDraft";
 
-const ACCENT: Record<TemplateId, [number, number, number]> = {
+const ACCENT: Partial<Record<TemplateId, [number, number, number]>> = {
   "ats-pro": [17, 24, 39],
   "fresher-tech": [29, 78, 216],
   "modern-pro": [39, 39, 42],
