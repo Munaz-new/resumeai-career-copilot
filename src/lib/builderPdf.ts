@@ -2,7 +2,8 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import type { ResumeDraft } from "./resumeDraft";
 import { exportResumePdfSafe } from "./builderPdfFallback";
-import { exportStandardResumePdf } from "./standardResumePdf";
+import { exportEditorialCvPdf } from "./editorialCvPdf";
+import { exportModernSidebarPdf } from "./modernSidebarPdf";
 
 /**
  * WYSIWYG PDF export with automatic fallback.
@@ -21,7 +22,6 @@ export type ExportMode = "wysiwyg" | "fallback";
 const UNSUPPORTED_COLOR_RE = /(oklch|oklab|lab\(|lch\(|color\(|color-mix)/i;
 const PDF_RENDER_WIDTH = 760;
 const ONE_PAGE_TOLERANCE = 1.08;
-const STANDARD_TEMPLATES = new Set(["ats-pro", "fresher-tech", "modern-pro"]);
 
 function safeCssValue(property: string, value: string): string | null {
   if (!value || UNSUPPORTED_COLOR_RE.test(value)) {
@@ -97,11 +97,15 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
   try {
-    // ATS Professional, Fresher Tech, and Modern Professional use a
-    // deterministic text renderer to prevent browser canvas text overlap.
-    if (STANDARD_TEMPLATES.has(draft.template)) {
-      exportStandardResumePdf(draft);
-      console.info("[PDF] Standard template deterministic export complete", { template: draft.template });
+    if (draft.template === "editorial-cv") {
+      exportEditorialCvPdf(draft);
+      console.info("[PDF] Editorial CV deterministic export complete");
+      return "wysiwyg";
+    }
+
+    if (draft.template === "modern-sidebar") {
+      exportModernSidebarPdf(draft);
+      console.info("[PDF] Modern Sidebar deterministic export complete");
       return "wysiwyg";
     }
 
@@ -112,13 +116,18 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
       height: element.scrollHeight,
     });
 
-    let canvas;
-    try {
-      canvas = await captureWysiwyg(element, false);
-    } catch (primaryError) {
-      console.warn("[PDF] primary capture failed, retrying foreignObject renderer", primaryError);
-      canvas = await captureWysiwyg(element, true);
-    }
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      logging: false,
+      width: PDF_RENDER_WIDTH,
+      windowWidth: PDF_RENDER_WIDTH,
+      imageTimeout: 15000,
+      foreignObjectRendering: false,
+      removeContainer: true,
+      onclone: (doc, node) => sanitizeClonedDoc(doc, node as HTMLElement),
+    });
 
     const pdf = new jsPDF({ unit: "pt", format: "letter", compress: true });
     const pageW = pdf.internal.pageSize.getWidth();
@@ -158,7 +167,7 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     });
     return "wysiwyg";
   } catch (err) {
-    console.error("[PDF] WYSIWYG export failed after retry, using safe fallback", err);
+    console.error("[PDF] WYSIWYG export failed, using safe fallback", err);
     exportResumePdfSafe(draft);
     return "fallback";
   }
