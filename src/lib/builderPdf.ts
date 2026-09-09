@@ -34,9 +34,10 @@ function safeCssValue(property: string, value: string): string | null {
 }
 
 function inlineComputedStyles(doc: Document, root: HTMLElement) {
-  const nodes: HTMLElement[] = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+  const nodes: Element[] = [root, ...Array.from(root.querySelectorAll("*"))];
 
   for (const el of nodes) {
+    if (!(el instanceof HTMLElement) && !(el instanceof SVGElement)) continue;
     const cs = doc.defaultView?.getComputedStyle(el);
     if (!cs) continue;
 
@@ -44,10 +45,10 @@ function inlineComputedStyles(doc: Document, root: HTMLElement) {
       const property = cs[i];
       const value = cs.getPropertyValue(property);
       const safe = safeCssValue(property, value);
-      if (safe) el.style.setProperty(property, safe);
+      if (safe) (el as HTMLElement).style.setProperty(property, safe);
     }
 
-    el.style.setProperty("box-sizing", "border-box");
+    (el as HTMLElement).style.setProperty("box-sizing", "border-box");
   }
 
   for (const styleEl of Array.from(doc.querySelectorAll("style"))) styleEl.remove();
@@ -77,12 +78,27 @@ function sanitizeClonedDoc(doc: Document, root: HTMLElement) {
   root.style.setProperty("border-radius", "0", "important");
 }
 
+async function captureWysiwyg(element: HTMLElement, foreignObjectRendering: boolean) {
+  return html2canvas(element, {
+    scale: 2,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+    logging: false,
+    width: PDF_RENDER_WIDTH,
+    windowWidth: PDF_RENDER_WIDTH,
+    imageTimeout: 15000,
+    foreignObjectRendering,
+    removeContainer: true,
+    onclone: (doc, node) => sanitizeClonedDoc(doc, node as HTMLElement),
+  });
+}
+
 export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft): Promise<ExportMode> {
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
   try {
     // Editorial CV is the only template using the deterministic jsPDF renderer.
-    // All other templates retain the existing WYSIWYG export path unchanged.
+    // All other templates retain the existing WYSIWYG export path.
     if (draft.template === "editorial-cv") {
       exportEditorialCvPdf(draft);
       console.info("[PDF] Editorial CV deterministic export complete");
@@ -96,18 +112,17 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
       height: element.scrollHeight,
     });
 
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-      useCORS: true,
-      logging: false,
-      width: PDF_RENDER_WIDTH,
-      windowWidth: PDF_RENDER_WIDTH,
-      imageTimeout: 15000,
-      foreignObjectRendering: false,
-      removeContainer: true,
-      onclone: (doc, node) => sanitizeClonedDoc(doc, node as HTMLElement),
-    });
+    let canvas;
+    try {
+      canvas = await captureWysiwyg(element, false);
+    } catch (primaryError) {
+      // Some browser/template combinations still fail html2canvas's normal
+      // renderer even after CSS sanitization. Retry with SVG foreignObject
+      // rendering before falling back to the text-only PDF. This keeps the
+      // actual template design instead of silently producing a different CV.
+      console.warn("[PDF] primary capture failed, retrying foreignObject renderer", primaryError);
+      canvas = await captureWysiwyg(element, true);
+    }
 
     const pdf = new jsPDF({ unit: "pt", format: "letter", compress: true });
     const pageW = pdf.internal.pageSize.getWidth();
@@ -118,16 +133,12 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     const isOnePage = naturalImgH <= pageH * ONE_PAGE_TOLERANCE;
 
     if (isOnePage) {
-      // Small height overruns are usually caused by the template's deliberate
-      // screen-preview minimum height. Scale these slightly oversized
-      // captures down to one PDF page instead of creating a mostly blank page 2.
       const fitScale = Math.min(1, pageH / naturalImgH);
       const imgW = pageW * fitScale;
       const imgH = naturalImgH * fitScale;
       const x = (pageW - imgW) / 2;
       pdf.addImage(imgData, "JPEG", x, 0, imgW, imgH);
     } else {
-      // Preserve the original export width for genuinely multi-page resumes.
       const fullImgH = naturalImgH;
       let heightLeft = fullImgH;
       let position = 0;
@@ -151,7 +162,7 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     });
     return "wysiwyg";
   } catch (err) {
-    console.error("[PDF] WYSIWYG export failed, using safe fallback", err);
+    console.error("[PDF] WYSIWYG export failed after retry, using safe fallback", err);
     exportResumePdfSafe(draft);
     return "fallback";
   }
