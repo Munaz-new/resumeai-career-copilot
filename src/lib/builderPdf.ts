@@ -2,6 +2,8 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import type { ResumeDraft } from "./resumeDraft";
 import { exportResumePdfSafe } from "./builderPdfFallback";
+import { exportEditorialCvPdf } from "./editorialCvPdf";
+import { exportModernSidebarPdf } from "./modernSidebarPdf";
 
 /**
  * WYSIWYG PDF export with automatic fallback.
@@ -76,10 +78,37 @@ function sanitizeClonedDoc(doc: Document, root: HTMLElement) {
   root.style.setProperty("border-radius", "0", "important");
 }
 
+async function captureWysiwyg(element: HTMLElement, foreignObjectRendering: boolean) {
+  return html2canvas(element, {
+    scale: 2,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+    logging: false,
+    width: PDF_RENDER_WIDTH,
+    windowWidth: PDF_RENDER_WIDTH,
+    imageTimeout: 15000,
+    foreignObjectRendering,
+    removeContainer: true,
+    onclone: (doc, node) => sanitizeClonedDoc(doc, node as HTMLElement),
+  });
+}
+
 export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft): Promise<ExportMode> {
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
   try {
+    if (draft.template === "editorial-cv") {
+      exportEditorialCvPdf(draft);
+      console.info("[PDF] Editorial CV deterministic export complete");
+      return "wysiwyg";
+    }
+
+    if (draft.template === "modern-sidebar") {
+      exportModernSidebarPdf(draft);
+      console.info("[PDF] Modern Sidebar deterministic export complete");
+      return "wysiwyg";
+    }
+
     console.info("[PDF] starting WYSIWYG export", {
       template: draft.template,
       viewportWidth: element.clientWidth,
@@ -109,16 +138,12 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     const isOnePage = naturalImgH <= pageH * ONE_PAGE_TOLERANCE;
 
     if (isOnePage) {
-      // Small height overruns are usually caused by the template's deliberate
-      // screen-preview minimum height. Scale these slightly oversized
-      // captures down to one PDF page instead of creating a mostly blank page 2.
       const fitScale = Math.min(1, pageH / naturalImgH);
       const imgW = pageW * fitScale;
       const imgH = naturalImgH * fitScale;
       const x = (pageW - imgW) / 2;
       pdf.addImage(imgData, "JPEG", x, 0, imgW, imgH);
     } else {
-      // Preserve the original export width for genuinely multi-page resumes.
       const fullImgH = naturalImgH;
       let heightLeft = fullImgH;
       let position = 0;
