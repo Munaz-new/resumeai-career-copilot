@@ -9,6 +9,7 @@ const ACCENT: Partial<Record<TemplateId, [number, number, number]>> = {
   "creative-tech": [13, 107, 99],
 };
 
+const DEFAULT_ACCENT: [number, number, number] = [17, 24, 39];
 const DARK: [number, number, number] = [24, 24, 27];
 const MUTED: [number, number, number] = [82, 82, 91];
 
@@ -115,7 +116,7 @@ export function exportStandardResumePdf(draft: ResumeDraft) {
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 48;
   const contentWidth = pageW - margin * 2;
-  const accent = ACCENT[draft.template] ?? ACCENT["ats-pro"];
+  const accent = ACCENT[draft.template] ?? DEFAULT_ACCENT;
   let y = margin;
 
   const ensureSection = (minimum: number) => {
