@@ -83,11 +83,20 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
   try {
     const isOnePageTemplate = ONE_PAGE_TEMPLATES.has(draft.template);
 
+    // Wait for web fonts before measuring/capturing. This is especially
+    // important for the Editorial CV template, where a font metric change can
+    // alter wrapping and cause text rows to collide in the rasterized PDF.
+    if (typeof document !== "undefined" && "fonts" in document) {
+      await document.fonts.ready;
+    }
+
+    const captureHeight = Math.max(element.scrollHeight, element.offsetHeight);
+
     console.info("[PDF] starting WYSIWYG export", {
       template: draft.template,
       viewportWidth: element.clientWidth,
       exportWidth: PDF_RENDER_WIDTH,
-      height: element.scrollHeight,
+      height: captureHeight,
       onePageTemplate: isOnePageTemplate,
     });
 
@@ -97,7 +106,9 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
       useCORS: true,
       logging: false,
       width: PDF_RENDER_WIDTH,
+      height: captureHeight,
       windowWidth: PDF_RENDER_WIDTH,
+      windowHeight: captureHeight,
       imageTimeout: 15000,
       foreignObjectRendering: false,
       removeContainer: true,
