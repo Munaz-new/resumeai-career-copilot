@@ -105,19 +105,6 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
       return "wysiwyg";
     }
 
-    // Visual two-column templates use their own dedicated renderers.
-    if (draft.template === "editorial-cv") {
-      const { exportEditorialCvPdf } = await import("./editorialCvPdf");
-      exportEditorialCvPdf(draft);
-      return "wysiwyg";
-    }
-
-    if (draft.template === "modern-sidebar") {
-      const { exportModernSidebarPdf } = await import("./modernSidebarPdf");
-      exportModernSidebarPdf(draft);
-      return "wysiwyg";
-    }
-
     console.info("[PDF] starting WYSIWYG export", {
       template: draft.template,
       viewportWidth: element.clientWidth,
