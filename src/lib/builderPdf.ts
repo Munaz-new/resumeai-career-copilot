@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import type { ResumeDraft } from "./resumeDraft";
 import { exportResumePdfSafe } from "./builderPdfFallback";
+import { exportStandardResumePdf } from "./standardResumePdf";
 
 /**
  * WYSIWYG PDF export with automatic fallback.
@@ -20,6 +21,7 @@ export type ExportMode = "wysiwyg" | "fallback";
 const UNSUPPORTED_COLOR_RE = /(oklch|oklab|lab\(|lch\(|color\(|color-mix)/i;
 const PDF_RENDER_WIDTH = 760;
 const ONE_PAGE_TOLERANCE = 1.08;
+const STANDARD_TEMPLATES = new Set(["ats-pro", "fresher-tech", "modern-pro"]);
 
 function safeCssValue(property: string, value: string): string | null {
   if (!value || UNSUPPORTED_COLOR_RE.test(value)) {
@@ -76,10 +78,46 @@ function sanitizeClonedDoc(doc: Document, root: HTMLElement) {
   root.style.setProperty("border-radius", "0", "important");
 }
 
+async function captureWysiwyg(element: HTMLElement, foreignObjectRendering: boolean) {
+  return html2canvas(element, {
+    scale: 2,
+    backgroundColor: "#ffffff",
+    useCORS: true,
+    logging: false,
+    width: PDF_RENDER_WIDTH,
+    windowWidth: PDF_RENDER_WIDTH,
+    imageTimeout: 15000,
+    foreignObjectRendering,
+    removeContainer: true,
+    onclone: (doc, node) => sanitizeClonedDoc(doc, node as HTMLElement),
+  });
+}
+
 export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft): Promise<ExportMode> {
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
   try {
+    // ATS Professional, Fresher Tech, and Modern Professional use a
+    // deterministic text renderer to prevent browser canvas text overlap.
+    if (STANDARD_TEMPLATES.has(draft.template)) {
+      exportStandardResumePdf(draft);
+      console.info("[PDF] Standard template deterministic export complete", { template: draft.template });
+      return "wysiwyg";
+    }
+
+    // Visual two-column templates use their own dedicated renderers.
+    if (draft.template === "editorial-cv") {
+      const { exportEditorialCvPdf } = await import("./editorialCvPdf");
+      exportEditorialCvPdf(draft);
+      return "wysiwyg";
+    }
+
+    if (draft.template === "modern-sidebar") {
+      const { exportModernSidebarPdf } = await import("./modernSidebarPdf");
+      exportModernSidebarPdf(draft);
+      return "wysiwyg";
+    }
+
     console.info("[PDF] starting WYSIWYG export", {
       template: draft.template,
       viewportWidth: element.clientWidth,
@@ -87,18 +125,13 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
       height: element.scrollHeight,
     });
 
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      backgroundColor: "#ffffff",
-      useCORS: true,
-      logging: false,
-      width: PDF_RENDER_WIDTH,
-      windowWidth: PDF_RENDER_WIDTH,
-      imageTimeout: 15000,
-      foreignObjectRendering: false,
-      removeContainer: true,
-      onclone: (doc, node) => sanitizeClonedDoc(doc, node as HTMLElement),
-    });
+    let canvas;
+    try {
+      canvas = await captureWysiwyg(element, false);
+    } catch (primaryError) {
+      console.warn("[PDF] primary capture failed, retrying foreignObject renderer", primaryError);
+      canvas = await captureWysiwyg(element, true);
+    }
 
     const pdf = new jsPDF({ unit: "pt", format: "letter", compress: true });
     const pageW = pdf.internal.pageSize.getWidth();
@@ -109,16 +142,12 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     const isOnePage = naturalImgH <= pageH * ONE_PAGE_TOLERANCE;
 
     if (isOnePage) {
-      // Small height overruns are usually caused by the template's deliberate
-      // screen-preview minimum height. Scale these slightly oversized
-      // captures down to one PDF page instead of creating a mostly blank page 2.
       const fitScale = Math.min(1, pageH / naturalImgH);
       const imgW = pageW * fitScale;
       const imgH = naturalImgH * fitScale;
       const x = (pageW - imgW) / 2;
       pdf.addImage(imgData, "JPEG", x, 0, imgW, imgH);
     } else {
-      // Preserve the original export width for genuinely multi-page resumes.
       const fullImgH = naturalImgH;
       let heightLeft = fullImgH;
       let position = 0;
@@ -142,7 +171,7 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     });
     return "wysiwyg";
   } catch (err) {
-    console.error("[PDF] WYSIWYG export failed, using safe fallback", err);
+    console.error("[PDF] WYSIWYG export failed after retry, using safe fallback", err);
     exportResumePdfSafe(draft);
     return "fallback";
   }
