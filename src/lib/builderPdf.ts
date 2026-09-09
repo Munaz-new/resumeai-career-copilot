@@ -19,6 +19,7 @@ export type ExportMode = "wysiwyg" | "fallback";
 
 const UNSUPPORTED_COLOR_RE = /(oklch|oklab|lab\(|lch\(|color\(|color-mix)/i;
 const PDF_RENDER_WIDTH = 760;
+const ONE_PAGE_TEMPLATES = new Set(["modern-sidebar", "editorial-cv", "creative-tech"]);
 const ONE_PAGE_TOLERANCE = 1.08;
 
 function safeCssValue(property: string, value: string): string | null {
@@ -80,11 +81,14 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
   try {
+    const isOnePageTemplate = ONE_PAGE_TEMPLATES.has(draft.template);
+
     console.info("[PDF] starting WYSIWYG export", {
       template: draft.template,
       viewportWidth: element.clientWidth,
       exportWidth: PDF_RENDER_WIDTH,
       height: element.scrollHeight,
+      onePageTemplate: isOnePageTemplate,
     });
 
     const canvas = await html2canvas(element, {
@@ -104,30 +108,27 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
     const imgData = canvas.toDataURL("image/jpeg", 0.95);
-
     const naturalImgH = (canvas.height * pageW) / canvas.width;
-    const isOnePage = naturalImgH <= pageH * ONE_PAGE_TOLERANCE;
 
-    if (isOnePage) {
-      // Small height overruns are usually caused by the template's deliberate
-      // screen-preview minimum height. Scale these slightly oversized
-      // captures down to one PDF page instead of creating a mostly blank page 2.
+    if (isOnePageTemplate || naturalImgH <= pageH * ONE_PAGE_TOLERANCE) {
+      // Visual resume templates are designed as a single composed page. Fit
+      // the complete captured preview onto one PDF page rather than letting
+      // jsPDF slice the image and create a partial/blank follow-up page.
       const fitScale = Math.min(1, pageH / naturalImgH);
       const imgW = pageW * fitScale;
       const imgH = naturalImgH * fitScale;
       const x = (pageW - imgW) / 2;
       pdf.addImage(imgData, "JPEG", x, 0, imgW, imgH);
     } else {
-      // Preserve the original export width for genuinely multi-page resumes.
-      const fullImgH = naturalImgH;
-      let heightLeft = fullImgH;
+      // Keep multi-page behavior for the simpler non-visual templates.
+      let heightLeft = naturalImgH;
       let position = 0;
-      pdf.addImage(imgData, "JPEG", 0, position, pageW, fullImgH);
+      pdf.addImage(imgData, "JPEG", 0, position, pageW, naturalImgH);
       heightLeft -= pageH;
       while (heightLeft > 0) {
-        position = heightLeft - fullImgH;
+        position = heightLeft - naturalImgH;
         pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, position, pageW, fullImgH);
+        pdf.addImage(imgData, "JPEG", 0, position, pageW, naturalImgH);
         heightLeft -= pageH;
       }
     }
@@ -138,7 +139,7 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
       canvasWidth: canvas.width,
       canvasHeight: canvas.height,
       pages: pdf.getNumberOfPages(),
-      onePageFit: isOnePage,
+      onePageTemplate: isOnePageTemplate,
     });
     return "wysiwyg";
   } catch (err) {
