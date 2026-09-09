@@ -2,18 +2,15 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import type { ResumeDraft } from "./resumeDraft";
 import { exportResumePdfSafe } from "./builderPdfFallback";
+import { exportEditorialCvPdf } from "./editorialCvPdf";
 
 /**
  * WYSIWYG PDF export with automatic fallback.
  *
- * The live preview is responsive, so its width can become very narrow on a
- * phone. Capturing that responsive width directly makes text wrap into many
- * extra lines and can turn a one-page resume into a multi-page PDF.
- *
- * For PDF generation we render the preview at a stable desktop width and
- * inline the cloned preview's computed styles before html2canvas parses it.
- * This avoids Tailwind v4 color functions such as oklch causing html2canvas
- * to abort and silently switch to the old text-only fallback exporter.
+ * Editorial CV uses a deterministic jsPDF renderer because browser canvas
+ * rendering can drop or distort its responsive CSS layout. The renderer keeps
+ * the approved Editorial CV design while making text wrapping and spacing
+ * predictable in the downloaded PDF.
  */
 export type ExportMode = "wysiwyg" | "fallback";
 
@@ -81,11 +78,17 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
   try {
+    // Editorial CV is intentionally rendered directly with jsPDF. This avoids
+    // html2canvas falling back to a plain text PDF when its CSS parser cannot
+    // reproduce the template's grid/background layout.
+    if (draft.template === "editorial-cv") {
+      exportEditorialCvPdf(draft);
+      console.info("[PDF] Editorial CV deterministic export complete");
+      return "wysiwyg";
+    }
+
     const isOnePageTemplate = ONE_PAGE_TEMPLATES.has(draft.template);
 
-    // Wait for web fonts before measuring/capturing. This is especially
-    // important for the Editorial CV template, where a font metric change can
-    // alter wrapping and cause text rows to collide in the rasterized PDF.
     if (typeof document !== "undefined" && "fonts" in document) {
       await document.fonts.ready;
     }
@@ -122,16 +125,12 @@ export async function exportResumePdf(element: HTMLElement, draft: ResumeDraft):
     const naturalImgH = (canvas.height * pageW) / canvas.width;
 
     if (isOnePageTemplate || naturalImgH <= pageH * ONE_PAGE_TOLERANCE) {
-      // Visual resume templates are designed as a single composed page. Fit
-      // the complete captured preview onto one PDF page rather than letting
-      // jsPDF slice the image and create a partial/blank follow-up page.
       const fitScale = Math.min(1, pageH / naturalImgH);
       const imgW = pageW * fitScale;
       const imgH = naturalImgH * fitScale;
       const x = (pageW - imgW) / 2;
       pdf.addImage(imgData, "JPEG", x, 0, imgW, imgH);
     } else {
-      // Keep multi-page behavior for the simpler non-visual templates.
       let heightLeft = naturalImgH;
       let position = 0;
       pdf.addImage(imgData, "JPEG", 0, position, pageW, naturalImgH);
