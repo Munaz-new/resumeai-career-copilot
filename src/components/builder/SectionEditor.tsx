@@ -277,17 +277,45 @@ function EducationEditor({
   return (
     <div className="space-y-4">
       {data.items.map((e, i) => (
-        <div key={i} className="rounded-xl border border-border p-3 space-y-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <Input placeholder="Degree" value={e.degree} onChange={(ev) => upd(i, { degree: ev.target.value })} />
-            <Input placeholder="School" value={e.school} onChange={(ev) => upd(i, { school: ev.target.value })} />
-            <Input placeholder="Start year" value={e.start} onChange={(ev) => upd(i, { start: ev.target.value })} />
-            <Input placeholder="End year" value={e.end} onChange={(ev) => upd(i, { end: ev.target.value })} />
+        <div key={i} className="rounded-xl border border-border p-3 space-y-3">
+          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+            <p className="text-[10px] uppercase tracking-wide font-bold text-muted-foreground">Degree</p>
+            <Input
+              placeholder="e.g. B.E. Computer Science & Engineering"
+              value={e.degree}
+              onChange={(ev) => upd(i, { degree: ev.target.value })}
+            />
           </div>
-          <Input placeholder="Details (GPA, honors, ...)" value={e.details || ""} onChange={(ev) => upd(i, { details: ev.target.value })} />
-          <div className="flex justify-end">
+
+          <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+            <p className="text-[10px] uppercase tracking-wide font-bold text-muted-foreground">School / Institution</p>
+            <Input
+              placeholder="e.g. Bearys Institute of Technology"
+              value={e.school}
+              onChange={(ev) => upd(i, { school: ev.target.value })}
+            />
+          </div>
+
+          <div>
+            <p className="text-[10px] uppercase tracking-wide font-bold text-muted-foreground mb-1.5">Study period</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Input placeholder="Start year (e.g. 2024)" value={e.start} onChange={(ev) => upd(i, { start: ev.target.value })} />
+              <Input placeholder="End year (e.g. 2028 or Present)" value={e.end} onChange={(ev) => upd(i, { end: ev.target.value })} />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] uppercase tracking-wide font-bold text-muted-foreground mb-1.5">Grade / Details</p>
+            <Input
+              placeholder="e.g. 9.8 CGPA, First Class, Honors"
+              value={e.details || ""}
+              onChange={(ev) => upd(i, { details: ev.target.value })}
+            />
+          </div>
+
+          <div className="flex justify-end pt-1">
             <button onClick={() => remove(i)} className="text-xs text-destructive hover:underline">
-              Remove
+              Remove education
             </button>
           </div>
         </div>
