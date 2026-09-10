@@ -58,8 +58,48 @@ export interface ResumeDraft {
 
 const KEY = "resumeai.builder.draft.v1";
 
+function normalizeEducationItem(item: EducationItem): EducationItem {
+  const degree = item.degree?.trim() || "";
+  const school = item.school?.trim() || "";
+
+  // Older drafts could contain the section label as an education entry's degree.
+  if (degree.toLowerCase() === "education" && school) {
+    return { ...item, degree: "", school };
+  }
+
+  // If an older draft put an obvious institution name into Degree while School is empty,
+  // move it to the correct field. This keeps existing drafts readable without changing
+  // normal degree values such as "B.E. Computer Science & Engineering".
+  const looksLikeInstitution = /\b(university|institute|institution|college|school|academy|polytechnic)\b/i.test(degree);
+  if (!school && degree && looksLikeInstitution) {
+    return { ...item, degree: "", school: degree };
+  }
+
+  return item;
+}
+
+function normalizeDraft(draft: ResumeDraft): ResumeDraft {
+  return {
+    ...draft,
+    sections: draft.sections.map((section) =>
+      section.type === "education"
+        ? {
+            ...section,
+            data: {
+              ...(section.data as SectionData["education"]),
+              items: (section.data as SectionData["education"]).items.map(normalizeEducationItem),
+            },
+          }
+        : section,
+    ),
+  };
+}
+
 export function loadDraft(): ResumeDraft | null {
-  try { const raw = localStorage.getItem(KEY); return raw ? (JSON.parse(raw) as ResumeDraft) : null; } catch { return null; }
+  try {
+    const raw = localStorage.getItem(KEY);
+    return raw ? normalizeDraft(JSON.parse(raw) as ResumeDraft) : null;
+  } catch { return null; }
 }
 export function saveDraft(d: ResumeDraft): void { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* quota */ } }
 export function clearDraft(): void { localStorage.removeItem(KEY); }
